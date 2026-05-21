@@ -1,5 +1,5 @@
 // client/src/components/Navbar.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/stores';
 import toast from 'react-hot-toast';
