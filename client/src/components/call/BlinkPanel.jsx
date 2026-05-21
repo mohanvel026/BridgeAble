@@ -472,57 +472,85 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
 
       {/* Cheat Sheet Modal */}
       {showCheatSheet && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md rounded-3xl animate-fade-in">
-          <div className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/[0.02]">
-              <h3 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
-                <HelpCircle size={16} className="text-teal-400" /> Blink Communication Guide
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-[#040404]/90 backdrop-blur-2xl animate-fade-in rounded-[2rem] overflow-hidden">
+          {/* Ambient Background Glows */}
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-teal-500/10 blur-[100px] rounded-full" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/10 blur-[100px] rounded-full" />
+          </div>
+
+          <div className="w-full max-w-3xl max-h-full bg-zinc-950/60 border border-white/10 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col relative z-10 backdrop-blur-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 md:p-6 border-b border-white/10 bg-gradient-to-r from-teal-500/5 to-transparent">
+              <h3 className="text-sm md:text-base font-black text-white tracking-widest uppercase flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-teal-500/20 flex items-center justify-center border border-teal-500/40 shadow-[0_0_15px_rgba(45,212,191,0.2)]">
+                  <HelpCircle size={16} className="text-teal-400" />
+                </div>
+                BridgeAble Syntax Guide
               </h3>
-              <button onClick={() => setShowCheatSheet(false)} className="p-1.5 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors">
-                <X size={18} />
+              <button onClick={() => setShowCheatSheet(false)} className="p-2 text-white/50 hover:text-white bg-white/5 hover:bg-rose-500/20 hover:border-rose-500/50 border border-transparent rounded-xl transition-all duration-300 group">
+                <X size={18} className="group-hover:scale-110 transition-transform group-hover:text-rose-400" />
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6 max-h-[60vh]">
+            <div className="p-5 md:p-8 overflow-y-auto custom-scrollbar flex flex-col gap-8 flex-1">
               {/* Timing Guide */}
-              <div>
-                <h4 className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-3 border-b border-white/5 pb-2">1. Blink Actions</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-start gap-3">
-                    <div className="mt-0.5"><div className="w-2 h-2 rounded-full bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]" /></div>
+              <div className="space-y-4">
+                <h4 className="text-[11px] text-zinc-500 font-black tracking-[0.2em] uppercase flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+                  1. Eye Gestures & Triggers
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Dot */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/5 flex items-start gap-4 hover:border-white/10 transition-colors group">
+                    <div className="mt-1 w-3 h-3 rounded-full bg-teal-400 shadow-[0_0_12px_rgba(45,212,191,0.6)] group-hover:scale-110 transition-transform" />
                     <div>
-                      <p className="text-xs font-bold text-white">Quick Blink (Dot)</p>
-                      <p className="text-[10px] text-zinc-400 leading-relaxed mt-1">A normal fast blink builds dots for Morse code letters.</p>
+                      <p className="text-sm font-black text-white uppercase tracking-wider">Quick Blink <span className="text-[10px] text-teal-400 font-bold bg-teal-500/10 px-1.5 py-0.5 rounded ml-1">DOT</span></p>
+                      <p className="text-xs text-zinc-400 leading-relaxed mt-1.5">A normal, fast blink builds the dots required for Morse code letters.</p>
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-start gap-3">
-                    <div className="mt-1"><div className="w-5 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]" /></div>
+                  {/* Dash */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/5 flex items-start gap-4 hover:border-white/10 transition-colors group">
+                    <div className="mt-2 w-8 h-2.5 rounded-full bg-indigo-400 shadow-[0_0_12px_rgba(129,140,248,0.6)] group-hover:scale-110 transition-transform" />
                     <div>
-                      <p className="text-xs font-bold text-white">Long Blink (Dash)</p>
-                      <p className="text-[10px] text-zinc-400 leading-relaxed mt-1">Hold eyes closed for half a second to build dashes.</p>
+                      <p className="text-sm font-black text-white uppercase tracking-wider">Long Blink <span className="text-[10px] text-indigo-400 font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded ml-1">DASH</span></p>
+                      <p className="text-xs text-zinc-400 leading-relaxed mt-1.5">Hold eyes closed for half a second to build dashes.</p>
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-start gap-3">
-                    <span className="text-lg">🎵</span>
+                  {/* Prediction */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-500/10 to-transparent border border-teal-500/20 flex items-start gap-4 hover:border-teal-500/40 hover:bg-teal-500/10 transition-all group">
+                    <div className="w-8 h-8 rounded-xl bg-teal-500/20 flex items-center justify-center border border-teal-500/30 text-teal-400 font-black shadow-[0_0_15px_rgba(45,212,191,0.3)] group-hover:scale-110 transition-transform">
+                      1s
+                    </div>
                     <div>
-                      <p className="text-xs font-bold text-teal-400">Hold 1 Second (AI Word)</p>
-                      <p className="text-[10px] text-teal-400/70 leading-relaxed mt-1">Close your eyes until you hear the single chime to instantly accept the top AI word prediction.</p>
+                      <p className="text-sm font-black text-teal-300 uppercase tracking-wider flex items-center gap-2">
+                        Select AI Word <span className="text-[10px] bg-teal-500/20 px-1.5 py-0.5 rounded border border-teal-500/30">🎵 CHIME</span>
+                      </p>
+                      <p className="text-xs text-teal-200/60 leading-relaxed mt-1.5">Close your eyes until you hear the single chime to instantly accept the top AI word prediction.</p>
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">
-                    <span className="text-lg">🎵🎵</span>
+                  {/* Send */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-500/10 to-transparent border border-rose-500/20 flex items-start gap-4 hover:border-rose-500/40 hover:bg-rose-500/10 transition-all group">
+                    <div className="w-8 h-8 rounded-xl bg-rose-500/20 flex items-center justify-center border border-rose-500/30 text-rose-400 font-black shadow-[0_0_15px_rgba(244,63,94,0.3)] group-hover:scale-110 transition-transform">
+                      2s
+                    </div>
                     <div>
-                      <p className="text-xs font-bold text-rose-400">Hold 2 Seconds (Send)</p>
-                      <p className="text-[10px] text-rose-400/70 leading-relaxed mt-1">Keep eyes closed until you hear the double chime to send your entire message across the call.</p>
+                      <p className="text-sm font-black text-rose-300 uppercase tracking-wider flex items-center gap-2">
+                        Send Message <span className="text-[10px] bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/30">🎵🎵 CHIME</span>
+                      </p>
+                      <p className="text-xs text-rose-200/60 leading-relaxed mt-1.5">Keep eyes closed until you hear the double chime to send your entire message across the call.</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Morse Code Alphabet */}
-              <div>
-                <h4 className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-3 border-b border-white/5 pb-2">2. Morse Alphabet</h4>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              <div className="space-y-4">
+                <h4 className="text-[11px] text-zinc-500 font-black tracking-[0.2em] uppercase flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+                  2. Universal Morse Cipher
+                </h4>
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-2 md:gap-3">
                   {Object.entries({
                     'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
                     'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
@@ -530,9 +558,9 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
                     'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
                     'Y': '-.--', 'Z': '--..'
                   }).map(([letter, code]) => (
-                    <div key={letter} className="flex flex-col items-center justify-center p-2 rounded-lg bg-black/40 border border-white/5">
-                      <span className="text-sm font-black text-white">{letter}</span>
-                      <span className="text-xs font-bold tracking-widest text-teal-400 mt-1">{code}</span>
+                    <div key={letter} className="flex flex-col items-center justify-center p-3 rounded-2xl bg-zinc-900/50 border border-white/5 hover:bg-white/5 hover:border-white/20 transition-all group hover:-translate-y-1 hover:shadow-lg cursor-default">
+                      <span className="text-lg md:text-xl font-black text-white/90 group-hover:text-teal-300 transition-colors">{letter}</span>
+                      <span className="text-xs md:text-sm font-bold tracking-widest text-teal-500/70 mt-1 group-hover:text-teal-400 group-hover:shadow-teal-400/50 drop-shadow-md">{code}</span>
                     </div>
                   ))}
                 </div>
