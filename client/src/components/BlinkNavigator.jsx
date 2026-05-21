@@ -77,6 +77,8 @@ export default function BlinkNavigator() {
   }, [getFocusableElements, tts]);
 
   const handleBlink = useCallback(({ duration }) => {
+    if (window.PAUSE_BLINK_NAVIGATOR) return;
+    
     const now = Date.now();
     if (duration < MIN_INTENTIONAL_BLINK_MS) return;
     if (now - lastActionTimeRef.current < ACTION_COOLDOWN_MS) return;

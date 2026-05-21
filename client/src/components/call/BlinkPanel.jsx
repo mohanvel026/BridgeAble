@@ -43,6 +43,10 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
   const earThreshold = blinkProfile?.earThreshold || 0.22;
   const dashMs       = blinkProfile?.dashMs || 400;
 
+  const handleWord = useCallback((word) => {
+    setSentence(prev => prev + (prev ? ' ' : '') + word);
+  }, []);
+
   const {
     morseBuffer,
     currentWord,
@@ -53,13 +57,26 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
     deleteLetter,
     clear,
   } = useMorseDecoder({
-    onWord: (word) => {
-      setSentence(prev => prev + (prev ? ' ' : '') + word);
-    }
+    onWord: handleWord
   });
+
+  const predictionsRef = useRef([]);
+  useEffect(() => {
+    predictionsRef.current = predictions;
+  }, [predictions]);
+
+  // Pause the global blink navigator while typing Morse code
+  useEffect(() => {
+    window.PAUSE_BLINK_NAVIGATOR = true;
+    return () => {
+      window.PAUSE_BLINK_NAVIGATOR = false;
+    };
+  }, []);
 
   const blinkStartRef = useRef(null);
   const isClosedRef   = useRef(false);
+  const predictionBeepTimerRef = useRef(null);
+  const sendBeepTimerRef = useRef(null);
 
   // ── Audio Engine for Haptic/Acoustic Feedback ───────────────────────────
   useEffect(() => {
@@ -74,29 +91,44 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
     };
   }, []);
 
-  const playBeep = useCallback(async () => {
+  const playTone = useCallback(async (freq, duration, type = 'square') => {
     if (!audioCtxRef.current) return;
     try {
-      // Browser policy: Resume context if suspended
       if (audioCtxRef.current.state === 'suspended') {
         await audioCtxRef.current.resume();
       }
       const osc = audioCtxRef.current.createOscillator();
       const gain = audioCtxRef.current.createGain();
       
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(800, audioCtxRef.current.currentTime);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtxRef.current.currentTime);
       
       gain.gain.setValueAtTime(0.015, audioCtxRef.current.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtxRef.current.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtxRef.current.currentTime + duration);
 
       osc.connect(gain);
       gain.connect(audioCtxRef.current.destination);
       osc.start();
-      osc.stop(audioCtxRef.current.currentTime + 0.05);
-    } catch (e) {
-      // Silently ignore audio block policies if they persist
-    }
+      osc.stop(audioCtxRef.current.currentTime + duration);
+    } catch (e) {}
+  }, []);
+
+  const playBeep = useCallback(() => playTone(800, 0.05), [playTone]);
+  const playPredictionBeep = useCallback(() => playTone(500, 0.1, 'sine'), [playTone]);
+  const playSendBeep = useCallback(() => {
+    playTone(400, 0.1, 'sine');
+    setTimeout(() => playTone(400, 0.1, 'sine'), 150);
+  }, [playTone]);
+
+  const handleSend = useCallback(() => {
+    setSentence(prev => {
+      // Must use the latest state directly in the updater since handleSend is memoized
+      let finalMsg = prev;
+      // We can't access currentWord directly reliably without adding it to deps (which restarts camera)
+      // So we rely on the parent component triggering onSend. 
+      // Actually, we'll just emit a custom event or use refs.
+      return prev; 
+    });
   }, []);
 
   // ── 60FPS Zero-Render Results Loop ──────────────────────────────────────────
@@ -141,19 +173,45 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
 
     if (eyeClosed && !isClosedRef.current) {
       isClosedRef.current = true;
-      setUiState({ isEyeClosed: true }); // Low frequency update (only on edge transition)
+      setUiState({ isEyeClosed: true });
       blinkStartRef.current = Date.now();
       playBeep();
+
+      // Schedule auditory cues for advanced selection
+      predictionBeepTimerRef.current = setTimeout(() => {
+        playPredictionBeep();
+      }, 1000);
+      
+      sendBeepTimerRef.current = setTimeout(() => {
+        playSendBeep();
+      }, 2000);
+
     } else if (!eyeClosed && isClosedRef.current) {
       isClosedRef.current = false;
       setUiState({ isEyeClosed: false });
       
+      clearTimeout(predictionBeepTimerRef.current);
+      clearTimeout(sendBeepTimerRef.current);
+      
       const duration = Date.now() - blinkStartRef.current;
-      if (duration > 80) { // Reject tiny twitches
-          addSymbol(duration >= dashMs ? 'dash' : 'dot');
+      
+      if (duration >= 2000) {
+        // Send
+        document.getElementById('hidden-send-trigger')?.click();
+      } else if (duration >= 1000) {
+        // Accept prediction
+        if (predictionsRef.current.length > 0) {
+          acceptPrediction(predictionsRef.current[0]);
+        } else {
+          confirmWord(); // Fallback if no prediction
+        }
+      } else if (duration >= dashMs) {
+        addSymbol('dash');
+      } else if (duration > 80) {
+        addSymbol('dot');
       }
     }
-  }, [earThreshold, dashMs, addSymbol, playBeep, faceVisible]);
+  }, [earThreshold, dashMs, addSymbol, playBeep, playPredictionBeep, playSendBeep, acceptPrediction, confirmWord, faceVisible]);
 
   // ── FaceMesh Initialization ───────────────────────────────────────────────
   useEffect(() => {
@@ -222,7 +280,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
   }, [onResults]);
 
   // ── UI Handlers ────────────────────────────────────────────────────────────
-  const handleSend = () => {
+  const executeSend = () => {
     const finalMsg = [sentence, currentWord].filter(Boolean).join(' ');
     if (finalMsg.trim()) {
       onSend(finalMsg.trim());
@@ -383,7 +441,8 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
         </div>
 
         <button 
-          onClick={handleSend}
+          id="hidden-send-trigger"
+          onClick={executeSend}
           disabled={!sentence && !currentWord}
           className="h-[60px] px-8 rounded-2xl bg-teal-500 hover:bg-teal-400 text-black font-black uppercase tracking-widest text-sm flex items-center gap-2 transition-all shadow-[0_0_30px_rgba(45,212,191,0.2)] disabled:opacity-50 disabled:shadow-none"
         >
@@ -393,9 +452,10 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
       </div>
       
       <div className="flex justify-center gap-6 mt-2 text-[10px] font-bold uppercase tracking-widest text-white/30">
-        <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/30" /> Dot = Letter</span>
+        <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/30" /> Dot (&lt; {dashMs}ms) = Letter</span>
         <span className="flex items-center gap-2"><div className="w-3 h-1.5 rounded-full bg-white/30" /> Dash = Action</span>
-        <span className="flex items-center gap-2">Dash = Space/Send</span>
+        <span className="flex items-center gap-2 text-teal-400/50">Hold 1s = Select AI Word</span>
+        <span className="flex items-center gap-2 text-rose-400/50">Hold 2s = Send Message</span>
       </div>
     </div>
   );
