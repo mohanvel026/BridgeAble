@@ -240,7 +240,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
         <div className="relative w-full md:w-[280px] h-full rounded-2xl overflow-hidden bg-black shadow-inner border border-white/5 flex-shrink-0 group">
           <video 
             ref={videoRef} 
-            className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity blur-[2px]"
+            className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
             style={{ transform: 'scaleX(-1)' }}
             playsInline 
             muted 

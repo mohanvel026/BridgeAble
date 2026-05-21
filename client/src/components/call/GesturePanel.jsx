@@ -182,10 +182,8 @@ export default function GesturePanel({ onSend }) {
 
     const init = async () => {
       try {
-        const handsModule = await import('@mediapipe/hands');
-        const Hands = handsModule.Hands || handsModule.default?.Hands || window.Hands;
-        const cameraModule = await import('@mediapipe/camera_utils');
-        const Camera = cameraModule.Camera || cameraModule.default?.Camera || window.Camera;
+        const Hands = window.Hands;
+        const Camera = window.Camera;
 
         const hands = new Hands({
           locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
@@ -285,7 +283,7 @@ export default function GesturePanel({ onSend }) {
            style={{ aspectRatio: '4/3' }}>
         <video
           ref={videoRef}
-          className="w-full h-full object-cover scale-x-[-1] opacity-40 mix-blend-luminosity blur-[2px]"
+          className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
           playsInline muted autoPlay
         />
         <canvas
