@@ -65,10 +65,10 @@ export default function App() {
       {user && <SOSButton />}
       {/* Incoming call modal — socket-driven */}
       {user && <IncomingCallModal />}
-      {/* Global accessibility navigators — each auto-activates for the right disability type */}
-      {user && <BlinkNavigator />}    {/* paralyzed: eye blink navigation */}
-      {user && <VoiceNavigator />}    {/* blind: voice command navigation */}
-      {user && <DiscreteNavigator />} {/* gesture: Apple TV style focus nav */}
+      {/* Global accessibility navigators — only render the active one to prevent camera/mic conflicts */}
+      {user?.inputMode === 'blink' && <BlinkNavigator />}
+      {user?.inputMode === 'voice' && <VoiceNavigator />}
+      {user?.inputMode === 'gesture' && <DiscreteNavigator />}
 
       <ErrorBoundary>
         <Routes>

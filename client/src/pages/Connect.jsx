@@ -398,7 +398,7 @@ export default function Connect() {
           isInitiator: true,
           recipientId: targetUser._id,
           recipientName: targetUser.name,
-          callType,
+          callType: callType,
         },
       });
     } catch {
