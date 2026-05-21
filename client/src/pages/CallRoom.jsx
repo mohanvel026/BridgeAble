@@ -977,13 +977,14 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
       </header>
 
       {/* Main View Area Grid */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10">
+      {/* Main View Area Grid */}
+      <main className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden relative z-10 overflow-y-auto">
         
-        {/* Stream Viewports */}
-        <section className="flex-1 flex flex-col lg:flex-row gap-4 p-4 lg:p-6 relative">
+        {/* Stream Viewports — Sticky on mobile so you always see the other person */}
+        <section className="sticky top-0 z-40 flex-none h-[40vh] sm:h-[50vh] lg:h-auto lg:flex-1 flex flex-col lg:flex-row gap-2 lg:gap-4 p-2 lg:p-6 bg-[#020808]/95 backdrop-blur-xl lg:bg-transparent border-b border-white/10 lg:border-none shadow-2xl lg:shadow-none">
           
           {/* Remote Feed */}
-          <div className="flex-1 relative rounded-3xl border border-white/5 bg-zinc-900/40 backdrop-blur-sm overflow-hidden shadow-2xl flex items-center justify-center group transition-all">
+          <div className="flex-1 relative rounded-2xl lg:rounded-3xl border border-white/5 bg-zinc-900/40 backdrop-blur-sm overflow-hidden shadow-2xl flex items-center justify-center group transition-all">
             <video ref={remoteVideoRef} className={`w-full h-full object-cover transition-opacity duration-500 ${remoteCamOff ? 'opacity-0' : 'opacity-100'}`} autoPlay playsInline />
             
             {/* Inner shadow/gradient for better text readability */}
@@ -1003,7 +1004,7 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
                     console.warn('PiP failed:', err);
                   }
                 }}
-                className="absolute top-6 left-6 bg-zinc-950/60 hover:bg-zinc-900 backdrop-blur-md border border-white/10 p-3 rounded-xl text-white opacity-0 group-hover:opacity-100 transition-all z-40 active:scale-95 shadow-lg"
+                className="absolute top-4 left-4 lg:top-6 lg:left-6 bg-zinc-950/60 hover:bg-zinc-900 backdrop-blur-md border border-white/10 p-2 lg:p-3 rounded-lg lg:rounded-xl text-white opacity-0 group-hover:opacity-100 transition-all z-40 active:scale-95 shadow-lg"
                 title="Pop out video (Picture-in-Picture)"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1017,22 +1018,22 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
             {/* Connecting placeholder — shown while WebRTC is negotiating (no remote stream yet) */}
             {!remoteParticipant && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md z-10">
-                <div className="relative mb-8">
+                <div className="relative mb-4 lg:mb-8">
                   {[1,2,3].map(i => (
                     <div key={i} className="absolute inset-0 rounded-full border border-teal-500/20"
                       style={{ transform: `scale(${1 + i * 0.35})`, animation: `ping ${1.5 + i * 0.5}s ease-out infinite`, animationDelay: `${i * 0.4}s`, opacity: 0.5 }} />
                   ))}
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-500/20 to-teal-900/40 border border-teal-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.2)] backdrop-blur-xl">
-                    <span className="text-4xl font-black text-teal-300 drop-shadow-md">
+                  <div className="w-16 h-16 lg:w-24 lg:h-24 rounded-full bg-gradient-to-br from-teal-500/20 to-teal-900/40 border border-teal-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.2)] backdrop-blur-xl">
+                    <span className="text-2xl lg:text-4xl font-black text-teal-300 drop-shadow-md">
                       {recipientName?.[0]?.toUpperCase() || '?'}
                     </span>
                   </div>
                 </div>
-                <p className="text-white font-black text-2xl mb-2 drop-shadow-md">{recipientName}</p>
-                <p className="text-teal-400/70 text-[10px] font-black uppercase tracking-[0.2em] mb-6">Establishing Secure Link</p>
-                <div className="flex items-center gap-2">
+                <p className="text-white font-black text-lg lg:text-2xl mb-1 lg:mb-2 drop-shadow-md">{recipientName}</p>
+                <p className="text-teal-400/70 text-[8px] lg:text-[10px] font-black uppercase tracking-[0.2em] mb-4 lg:mb-6">Establishing Secure Link</p>
+                <div className="flex items-center gap-1.5 lg:gap-2">
                   {[0,1,2].map(i => (
-                    <div key={i} className="w-2 h-2 rounded-full bg-teal-400 shadow-[0_0_5px_rgba(45,212,191,0.8)]"
+                    <div key={i} className="w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-teal-400 shadow-[0_0_5px_rgba(45,212,191,0.8)]"
                       style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s` }} />
                   ))}
                 </div>
@@ -1042,21 +1043,21 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
             {/* Remote Camera Disabled Overlay */}
             {remoteCamOff && remoteParticipant && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-lg z-10">
-                <div className="w-28 h-28 rounded-full bg-gradient-to-br from-teal-500/10 to-teal-900/20 flex items-center justify-center mb-6 border border-teal-500/20 shadow-[0_0_40px_rgba(20,184,166,0.1)]">
-                  <span className="text-5xl font-black text-teal-400/80 drop-shadow-sm">
+                <div className="w-16 h-16 lg:w-28 lg:h-28 rounded-full bg-gradient-to-br from-teal-500/10 to-teal-900/20 flex items-center justify-center mb-4 lg:mb-6 border border-teal-500/20 shadow-[0_0_40px_rgba(20,184,166,0.1)]">
+                  <span className="text-3xl lg:text-5xl font-black text-teal-400/80 drop-shadow-sm">
                     {remoteParticipant?.name?.[0]?.toUpperCase() || '?'}
                   </span>
                 </div>
-                <p className="font-black text-white text-2xl mb-2 drop-shadow-md">{remoteParticipant?.name}</p>
-                <p className="font-black text-[10px] tracking-widest uppercase text-zinc-500 bg-zinc-900/50 px-3 py-1 rounded-full border border-white/5">Video Feed Disabled</p>
+                <p className="font-black text-white text-xl lg:text-2xl mb-1 lg:mb-2 drop-shadow-md">{remoteParticipant?.name}</p>
+                <p className="font-black text-[8px] lg:text-[10px] tracking-widest uppercase text-zinc-500 bg-zinc-900/50 px-2 lg:px-3 py-1 rounded-full border border-white/5">Video Feed Disabled</p>
               </div>
             )}
 
             {/* Remote Muted Indicator Overlay */}
             {remoteMuted && (
-              <div className="absolute top-6 right-6 bg-rose-500/20 backdrop-blur-xl border border-rose-500/40 px-4 py-2 rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(244,63,94,0.3)] z-30 animate-fade-in">
-                <span className="text-rose-400 animate-pulse text-lg">🔇</span>
-                <span className="text-[10px] font-black text-rose-300 uppercase tracking-widest">Audio Muted</span>
+              <div className="absolute top-3 right-3 lg:top-6 lg:right-6 bg-rose-500/20 backdrop-blur-xl border border-rose-500/40 px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg lg:rounded-xl flex items-center gap-1.5 lg:gap-2 shadow-[0_0_20px_rgba(244,63,94,0.3)] z-30 animate-fade-in">
+                <span className="text-rose-400 animate-pulse text-sm lg:text-lg">🔇</span>
+                <span className="text-[8px] lg:text-[10px] font-black text-rose-300 uppercase tracking-widest hidden sm:inline">Audio Muted</span>
               </div>
             )}
             
@@ -1064,10 +1065,9 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
             <SubtitleOverlay subtitles={subtitles} myId={user?._id} />
           </div>
 
-
-          {/* Picture-in-Picture Local Node Feed — hidden for voice-only calls */}
+          {/* Picture-in-Picture Local Node Feed */}
           {!isVoiceOnly ? (
-            <div className="w-full lg:w-72 relative rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-2xl h-48 lg:h-auto lg:max-h-48 lg:absolute lg:bottom-6 lg:right-6 z-30 group transition-all hover:scale-105 hover:border-teal-500/30">
+            <div className="absolute bottom-4 right-4 lg:bottom-10 lg:right-10 w-24 h-36 lg:w-72 lg:h-48 rounded-xl lg:rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-50 group transition-all hover:scale-105 hover:border-teal-500/30">
               <video
                 ref={localVideoRef}
                 className={`w-full h-full object-cover scale-x-[-1] transition-opacity duration-500 ${camOff ? 'opacity-0' : 'opacity-100'}`}
@@ -1077,20 +1077,20 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
               
               {camOff && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-md">
-                  <span className="text-3xl mb-3 drop-shadow-md">🚫</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Camera Off</span>
+                  <span className="text-xl lg:text-3xl mb-1 lg:mb-3 drop-shadow-md">🚫</span>
+                  <span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-zinc-500">Camera Off</span>
                 </div>
               )}
               
-              <div className="absolute bottom-3 left-3 bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-[9px] text-teal-400 font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity border border-teal-500/20">
+              <div className="absolute bottom-2 left-2 lg:bottom-3 lg:left-3 bg-zinc-950/80 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-1.5 rounded-lg text-[7px] lg:text-[9px] text-teal-400 font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity border border-teal-500/20">
                 Local Node
               </div>
             </div>
           ) : (
             // Voice call — show audio-only avatar in PiP position
-            <div className="lg:absolute lg:bottom-6 lg:right-6 z-30 w-24 h-24 rounded-full border-2 border-teal-500/30 bg-gradient-to-br from-teal-900/60 to-zinc-900 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.15)] cursor-default backdrop-blur-md">
-              <span className="text-3xl font-black text-teal-300 drop-shadow-md">{user?.name?.[0]?.toUpperCase() || '?'}</span>
-              <span className="text-[9px] font-black text-teal-500/80 uppercase tracking-widest mt-1">You</span>
+            <div className="absolute bottom-4 right-4 lg:bottom-10 lg:right-10 z-50 w-16 h-16 lg:w-24 lg:h-24 rounded-full border-2 border-teal-500/30 bg-gradient-to-br from-teal-900/60 to-zinc-900 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.3)] cursor-default backdrop-blur-md">
+              <span className="text-xl lg:text-3xl font-black text-teal-300 drop-shadow-md">{user?.name?.[0]?.toUpperCase() || '?'}</span>
+              <span className="text-[7px] lg:text-[9px] font-black text-teal-500/80 uppercase tracking-widest mt-0.5 lg:mt-1">You</span>
               {/* Animated audio ring */}
               <div className="absolute inset-0 rounded-full border border-teal-400/20 animate-ping" />
             </div>
