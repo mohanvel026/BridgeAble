@@ -58,7 +58,7 @@ export default function InputModeSwitcher({ compact = false, roomCode = null }) 
       </button>
 
       {open && (
-        <div className="absolute right-0 sm:left-0 top-full mt-3 w-56 p-2 z-[99999] animate-slide-down rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.8)] backdrop-blur-2xl bg-zinc-950/90 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none">
+        <div className="absolute right-0 sm:left-0 top-full mt-3 w-56 p-2 z-[99999] animate-slide-down rounded-2xl border border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-[#020808] overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none">
           {MODES.map(mode => (
             <button key={mode.id} onClick={() => handleSwitch(mode)}
               className={`relative w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-300 group
