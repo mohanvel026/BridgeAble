@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import useMorseDecoder from '../../hooks/useMorseDecoder';
-import { Play, Delete, RotateCcw, Send, Check } from 'lucide-react';
+import { Play, Delete, RotateCcw, Send, Check, HelpCircle, X } from 'lucide-react';
 
 // ── EAR (Eye Aspect Ratio) computation ───────────────────────────────────────
 function dist(a, b, width = 320, height = 240) { 
@@ -35,6 +35,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
   const [sentence, setSentence] = useState('');
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [faceVisible, setFaceVisible] = useState(false);
+  const [showCheatSheet, setShowCheatSheet] = useState(false);
 
   // Only store essential UI state in React, not 60fps tracking data
   const [uiState, setUiState] = useState({ isEyeClosed: false });
@@ -372,6 +373,17 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
 
         {/* Decoder Status / Builder */}
         <div className="flex-1 flex flex-col gap-3 h-full">
+          {/* Header Actions */}
+          <div className="flex justify-end mb-[-10px] relative z-20">
+            <button 
+              onClick={() => setShowCheatSheet(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 hover:bg-teal-500/20 transition-all text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(20,184,166,0.15)]"
+            >
+              <HelpCircle size={14} />
+              How to Type
+            </button>
+          </div>
+
           {/* Current Buffer */}
           <div className="flex-1 rounded-2xl bg-white/[0.03] border border-white/5 p-4 flex flex-col justify-center shadow-inner relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-50" />
@@ -457,6 +469,78 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
         <span className="flex items-center gap-2 text-teal-400/50">Hold 1s = Select AI Word</span>
         <span className="flex items-center gap-2 text-rose-400/50">Hold 2s = Send Message</span>
       </div>
+
+      {/* Cheat Sheet Modal */}
+      {showCheatSheet && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md rounded-3xl animate-fade-in">
+          <div className="w-full max-w-2xl bg-zinc-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/[0.02]">
+              <h3 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
+                <HelpCircle size={16} className="text-teal-400" /> Blink Communication Guide
+              </h3>
+              <button onClick={() => setShowCheatSheet(false)} className="p-1.5 text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6 max-h-[60vh]">
+              {/* Timing Guide */}
+              <div>
+                <h4 className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-3 border-b border-white/5 pb-2">1. Blink Actions</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-start gap-3">
+                    <div className="mt-0.5"><div className="w-2 h-2 rounded-full bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]" /></div>
+                    <div>
+                      <p className="text-xs font-bold text-white">Quick Blink (Dot)</p>
+                      <p className="text-[10px] text-zinc-400 leading-relaxed mt-1">A normal fast blink builds dots for Morse code letters.</p>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-start gap-3">
+                    <div className="mt-1"><div className="w-5 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.5)]" /></div>
+                    <div>
+                      <p className="text-xs font-bold text-white">Long Blink (Dash)</p>
+                      <p className="text-[10px] text-zinc-400 leading-relaxed mt-1">Hold eyes closed for half a second to build dashes.</p>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-start gap-3">
+                    <span className="text-lg">🎵</span>
+                    <div>
+                      <p className="text-xs font-bold text-teal-400">Hold 1 Second (AI Word)</p>
+                      <p className="text-[10px] text-teal-400/70 leading-relaxed mt-1">Close your eyes until you hear the single chime to instantly accept the top AI word prediction.</p>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3">
+                    <span className="text-lg">🎵🎵</span>
+                    <div>
+                      <p className="text-xs font-bold text-rose-400">Hold 2 Seconds (Send)</p>
+                      <p className="text-[10px] text-rose-400/70 leading-relaxed mt-1">Keep eyes closed until you hear the double chime to send your entire message across the call.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Morse Code Alphabet */}
+              <div>
+                <h4 className="text-[10px] text-zinc-500 font-black tracking-widest uppercase mb-3 border-b border-white/5 pb-2">2. Morse Alphabet</h4>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {Object.entries({
+                    'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
+                    'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
+                    'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
+                    'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
+                    'Y': '-.--', 'Z': '--..'
+                  }).map(([letter, code]) => (
+                    <div key={letter} className="flex flex-col items-center justify-center p-2 rounded-lg bg-black/40 border border-white/5">
+                      <span className="text-sm font-black text-white">{letter}</span>
+                      <span className="text-xs font-bold tracking-widest text-teal-400 mt-1">{code}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
