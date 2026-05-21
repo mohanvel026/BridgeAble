@@ -129,10 +129,8 @@ export default function BlinkNavigator() {
 
     const initFaceMesh = async () => {
       try {
-        const faceMeshModule = await import('@mediapipe/face_mesh');
-        const FaceMesh = faceMeshModule.FaceMesh || faceMeshModule.default?.FaceMesh || window.FaceMesh;
-        const cameraModule = await import('@mediapipe/camera_utils');
-        const Camera = cameraModule.Camera || cameraModule.default?.Camera || window.Camera;
+        const FaceMesh = window.FaceMesh;
+        const Camera = window.Camera;
 
         if (!mounted || !videoRef.current) return;
 

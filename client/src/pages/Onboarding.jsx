@@ -260,13 +260,8 @@ export default function Onboarding() {
 
     (async () => {
       try {
-        const [fmMod, camMod] = await Promise.all([
-          import('@mediapipe/face_mesh').catch(() => null),
-          import('@mediapipe/camera_utils').catch(() => null),
-        ]);
-
-        const FaceMesh = fmMod?.FaceMesh  || fmMod?.default?.FaceMesh  || window.FaceMesh;
-        const Camera   = camMod?.Camera   || camMod?.default?.Camera   || window.Camera;
+        const FaceMesh = window.FaceMesh;
+        const Camera   = window.Camera;
 
         if (!FaceMesh || !Camera) {
           if (mountedRef.current) setCameraErr('MediaPipe unavailable. Please use Chrome or Edge.');

@@ -88,13 +88,8 @@ export default function useBlinkDetector(videoRef, {
     if (!videoRef?.current || !enabled) return;
 
     try {
-      const [fmMod, camMod] = await Promise.all([
-        import('@mediapipe/face_mesh').catch(() => ({})),
-        import('@mediapipe/camera_utils').catch(() => ({})),
-      ]);
-
-      const FaceMesh = fmMod.FaceMesh || fmMod.default?.FaceMesh || window.FaceMesh;
-      const Camera   = camMod.Camera  || camMod.default?.Camera  || window.Camera;
+      const FaceMesh = window.FaceMesh;
+      const Camera   = window.Camera;
 
       if (!FaceMesh || !Camera || !state.current.isMounted || !videoRef.current) return;
 
