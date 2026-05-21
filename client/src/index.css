@@ -97,12 +97,32 @@ h6 {
     @apply rounded-2xl border;
     background: var(--bg-card);
     border-color: var(--border);
-    box-shadow: var(--card);
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
   }
 
   .card:hover {
     border-color: var(--border-strong);
+    box-shadow: 0 4px 24px rgba(34, 211, 238, 0.07);
+  }
+
+  /* Clickable card — stronger hover used for user/patient list items */
+  .card-interactive {
+    @apply rounded-2xl border cursor-pointer;
+    background: var(--bg-card);
+    border-color: var(--border);
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease, background 0.22s ease;
+  }
+
+  .card-interactive:hover {
+    border-color: rgba(34, 211, 238, 0.3);
+    background: var(--bg-card-hover);
+    box-shadow: 0 8px 32px rgba(34, 211, 238, 0.1), 0 2px 8px rgba(0,0,0,0.3);
+    transform: translateY(-2px);
+  }
+
+  .card-interactive:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(34, 211, 238, 0.08);
   }
 
   .card-glass {
@@ -113,12 +133,13 @@ h6 {
 
   /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-200 select-none cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-xl select-none cursor-pointer;
     font-family: 'DM Sans', sans-serif;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease, filter 0.18s ease;
   }
 
   .btn:active {
-    transform: scale(0.97);
+    transform: scale(0.96) !important;
   }
 
   .btn-primary {
@@ -128,8 +149,9 @@ h6 {
   }
 
   .btn-primary:hover {
-    box-shadow: 0 4px 24px rgba(34, 211, 238, 0.5);
-    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(34, 211, 238, 0.55);
+    transform: translateY(-2px);
+    filter: brightness(1.08);
   }
 
   .btn-secondary {
@@ -141,6 +163,9 @@ h6 {
 
   .btn-secondary:hover {
     border-color: var(--accent-cyan);
+    background: var(--bg-card-hover);
+    box-shadow: 0 4px 16px rgba(34, 211, 238, 0.12);
+    transform: translateY(-1px);
   }
 
   .btn-ghost {
@@ -151,6 +176,7 @@ h6 {
   .btn-ghost:hover {
     background: var(--bg-card);
     color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(34, 211, 238, 0.08);
   }
 
   .btn-danger {
@@ -161,7 +187,10 @@ h6 {
   }
 
   .btn-danger:hover {
-    background: rgba(251, 113, 133, 0.25);
+    background: rgba(251, 113, 133, 0.28);
+    border-color: rgba(251, 113, 133, 0.55);
+    box-shadow: 0 4px 16px rgba(251, 113, 133, 0.2);
+    transform: translateY(-1px);
   }
 
   /* SOS button — always visible */
@@ -172,21 +201,57 @@ h6 {
     animation: pulseGlow 2s ease-in-out infinite;
   }
 
-  /* Input */
+  /* Input — premium hover + focus */
   .input {
-    @apply w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-200;
+    @apply w-full rounded-xl px-4 py-3 text-sm outline-none;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     color: var(--text-primary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
   }
 
   .input::placeholder {
     color: var(--text-muted);
+    transition: color 0.2s ease;
   }
 
+  /* Hover — subtle lift + brighter border */
+  .input:hover:not(:focus) {
+    border-color: rgba(34, 211, 238, 0.35);
+    background: rgba(7, 26, 25, 0.95);
+    box-shadow: 0 2px 12px rgba(34, 211, 238, 0.08);
+    transform: translateY(-1px);
+  }
+
+  /* Focus — full cyan glow ring */
   .input:focus {
     border-color: var(--accent-cyan);
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12), 0 4px 20px rgba(34, 211, 238, 0.15);
+    background: rgba(7, 26, 25, 1);
+    transform: translateY(-1px);
+  }
+
+  .input:focus::placeholder {
+    color: var(--text-secondary);
+  }
+
+  /* List row — for message/user/patient lists */
+  .list-row {
+    @apply rounded-xl px-4 py-3 cursor-pointer;
+    border: 1px solid transparent;
+    transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .list-row:hover {
+    background: var(--bg-card);
+    border-color: var(--border);
+    box-shadow: 0 2px 12px rgba(34, 211, 238, 0.06);
+    transform: translateX(3px);
+  }
+
+  .list-row:active {
+    background: var(--bg-card-hover);
+    transform: translateX(1px);
   }
 
   /* Badge */
