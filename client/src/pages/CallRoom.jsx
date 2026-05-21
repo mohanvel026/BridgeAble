@@ -1098,33 +1098,41 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
         </section>
 
         {/* Input Sidebar Control Panel */}
-        <aside className="w-full lg:w-[380px] border-t lg:border-t-0 lg:border-l border-white/5 bg-zinc-950/80 backdrop-blur-xl p-6 flex flex-col gap-6 overflow-y-auto shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-20">
+        <aside className="w-full lg:w-[380px] border-t lg:border-t-0 lg:border-l border-white/10 bg-[#040404]/80 backdrop-blur-3xl p-4 lg:p-6 flex flex-col gap-5 overflow-y-auto shadow-[-20px_0_50px_rgba(0,0,0,0.8)] z-20">
           
           {/* Mobile input switcher */}
-          <div className="block sm:hidden mb-2">
+          <div className="block sm:hidden mb-2 w-full overflow-x-auto pb-2 custom-scrollbar">
             <InputModeSwitcher compact={false} roomCode={roomCode} />
           </div>
 
-          <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 shadow-inner">
-            <h2 className="text-[10px] font-black tracking-widest text-zinc-500 mb-4 uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_5px_rgba(251,191,36,0.8)]"></span>
+          <div className="bg-zinc-900/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-2xl rounded-full pointer-events-none group-hover:bg-amber-500/10 transition-colors" />
+            <h2 className="text-[10px] font-black tracking-widest text-zinc-500 mb-4 uppercase flex items-center gap-2 relative z-10">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"></span>
               Rapid Transmission
             </h2>
-            <QuickPhrases compact={false} roomCode={roomCode} inCall={true} />
+            <div className="relative z-10">
+              <QuickPhrases compact={false} roomCode={roomCode} inCall={true} />
+            </div>
           </div>
           
-          <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 shadow-inner flex-1 flex flex-col min-h-[300px]">
-            <h2 className="text-[10px] font-black tracking-widest text-zinc-500 mb-4 uppercase flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shadow-[0_0_5px_rgba(45,212,191,0.8)]"></span>
-              Input Stream: <span className="text-teal-400">{myInputMode}</span>
-            </h2>
-            <div className="flex-1 relative">
+          <div className="bg-zinc-900/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 shadow-2xl flex-1 flex flex-col min-h-[300px] relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 blur-2xl rounded-full pointer-events-none group-hover:bg-teal-500/10 transition-colors" />
+            <div className="flex items-center justify-between mb-4 relative z-10">
+              <h2 className="text-[10px] font-black tracking-widest text-zinc-500 uppercase flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.8)]"></span>
+                Input Stream
+              </h2>
+              <span className="text-[9px] font-black uppercase tracking-widest bg-teal-500/10 text-teal-400 px-2 py-1 rounded-md border border-teal-500/20">{myInputMode} Active</span>
+            </div>
+            <div className="flex-1 relative z-10">
               <RenderedInputPanel onSend={sendSubtitle} autoStart={myInputMode === 'voice'} />
             </div>
           </div>
 
           {/* Subtitle Message History */}
-          <div className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 shadow-inner flex-1 flex flex-col min-h-[250px] max-h-[350px]">
+          <div className="bg-zinc-900/60 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 shadow-2xl flex-1 flex flex-col min-h-[250px] max-h-[350px] relative overflow-hidden">
+            <div className="absolute -left-10 bottom-0 w-40 h-40 bg-zinc-500/5 blur-[40px] rounded-full pointer-events-none" />
             <TranscriptPanel
               transcript={historicalTranscript}
               colorMap={colorMap}
@@ -1136,12 +1144,12 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
       </main>
 
       {/* Primary Hardware Controls Footer Bar */}
-      <footer className="flex items-center justify-center gap-4 px-6 py-5 border-t border-white/5 bg-black/90 backdrop-blur-2xl z-30 relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+      <footer className="flex items-center justify-center gap-3 lg:gap-5 px-4 py-4 lg:px-6 lg:py-5 border-t border-white/10 bg-[#020404]/90 backdrop-blur-3xl z-30 relative shadow-[0_-20px_50px_rgba(0,0,0,0.8)]">
         <button
           onClick={toggleAudioMuteState}
           aria-label={muted ? "Unmute microphone" : "Mute microphone"}
-          className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl transition-all shadow-lg active:scale-95 focus:outline-none
-            ${muted ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)]' : 'bg-zinc-900 border-white/10 text-white hover:bg-zinc-800 hover:border-white/20'}`}
+          className={`w-12 h-12 lg:w-16 lg:h-16 rounded-2xl border-2 flex items-center justify-center text-xl lg:text-3xl transition-all shadow-[0_10px_20px_rgba(0,0,0,0.5)] active:scale-95 focus:outline-none hover:-translate-y-1
+            ${muted ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.3)]' : 'bg-zinc-900/80 border-white/10 text-white hover:bg-zinc-800 hover:border-white/30'}`}
         >
           {muted ? '🔇' : '🎙'}
         </button>
@@ -1152,16 +1160,16 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
             <button
               onClick={toggleCameraTrackState}
               aria-label={camOff ? "Enable camera" : "Disable camera"}
-              className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl transition-all shadow-lg active:scale-95 focus:outline-none
-                ${camOff ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.2)]' : 'bg-zinc-900 border-white/10 text-white hover:bg-zinc-800 hover:border-white/20'}`}
+              className={`w-12 h-12 lg:w-16 lg:h-16 rounded-2xl border-2 flex items-center justify-center text-xl lg:text-3xl transition-all shadow-[0_10px_20px_rgba(0,0,0,0.5)] active:scale-95 focus:outline-none hover:-translate-y-1
+                ${camOff ? 'bg-rose-500/20 border-rose-500/50 text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.3)]' : 'bg-zinc-900/80 border-white/10 text-white hover:bg-zinc-800 hover:border-white/30'}`}
             >
               {camOff ? '🚫' : '📸'}
             </button>
             <button
               onClick={toggleScreenDisplayCapture}
               aria-label={screenSharing ? "Stop screen share" : "Share screen"}
-              className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl transition-all shadow-lg active:scale-95 focus:outline-none
-                ${screenSharing ? 'bg-sky-500/20 border-sky-500/50 text-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.2)]' : 'bg-zinc-900 border-white/10 text-white hover:bg-zinc-800 hover:border-white/20'}`}
+              className={`w-12 h-12 lg:w-16 lg:h-16 rounded-2xl border-2 flex items-center justify-center text-xl lg:text-3xl transition-all shadow-[0_10px_20px_rgba(0,0,0,0.5)] active:scale-95 focus:outline-none hover:-translate-y-1
+                ${screenSharing ? 'bg-sky-500/20 border-sky-500/50 text-sky-400 shadow-[0_0_20px_rgba(14,165,233,0.3)]' : 'bg-zinc-900/80 border-white/10 text-white hover:bg-zinc-800 hover:border-white/30'}`}
             >
               🖥
             </button>
