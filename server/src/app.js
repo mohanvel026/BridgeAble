@@ -93,6 +93,20 @@ setInterval(() => {
   }
 }, RATE_LIMIT_WINDOW_MS).unref();
 
+// ── Root health check (prevents "Cannot GET /" on Render) ────────────────────
+app.get('/', (req, res) => {
+  const mongoose = require('mongoose');
+  const dbState  = mongoose.connection.readyState === 1 ? '🟢 Online' : '🔴 Offline (Mock Mode)';
+  res.json({
+    app:     'BridgeAble API',
+    version: '1.0.0',
+    status:  '✅ Server is running',
+    db:      dbState,
+    time:    new Date().toISOString(),
+    docs:    'All endpoints are served under /api/*',
+  });
+});
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',      authRateLimit, authRoutes);
 app.use('/api/users',     userRoutes);
