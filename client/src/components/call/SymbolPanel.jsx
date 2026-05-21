@@ -50,7 +50,6 @@ export default function SymbolPanel({ onSend }) {
     const text = sentence.map(s => s.label).join(' ');
     onSend(text, 1.0);
     
-    // TTS feedback
     try {
       const utter = new SpeechSynthesisUtterance(text);
       window.speechSynthesis.speak(utter);
@@ -60,77 +59,81 @@ export default function SymbolPanel({ onSend }) {
   };
 
   return (
-    <div className="space-y-4 relative" role="region" aria-label="AAC Symbol Communication Board">
+    <div className="space-y-4 relative w-full h-full flex flex-col" role="region" aria-label="AAC Symbol Communication Board">
       
-      {/* Background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-amber-500/10 blur-[60px] rounded-full pointer-events-none" />
+      {/* Dynamic Background Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-500/10 blur-[80px] rounded-full pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+      <div className="flex items-center justify-between relative z-10 px-2">
+        <div className="flex items-center gap-2 bg-[#020808] px-3 py-1.5 rounded-full border border-white/5 shadow-inner">
+          <div className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.9)] animate-pulse" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-300">
             AAC Grid Active
           </span>
         </div>
-        <span className="text-[9px] font-black text-amber-500/50 uppercase tracking-widest border border-amber-500/20 px-2 py-0.5 rounded-full">Pictogram Mode</span>
+        <span className="text-[9px] font-black text-amber-500/80 uppercase tracking-widest border border-amber-500/20 bg-amber-500/5 px-2.5 py-1 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.1)]">Pictogram Mode</span>
       </div>
 
-      {/* Sentence builder */}
-      <div className="min-h-[5rem] px-4 py-3 rounded-2xl bg-zinc-950/80 backdrop-blur-md border border-white/5 flex flex-wrap gap-2 items-start shadow-inner relative z-10 transition-all duration-300">
-        {sentence.length === 0
-          ? <span className="text-[10px] text-zinc-600 font-black uppercase tracking-widest absolute top-1/2 left-4 -translate-y-1/2">Tap symbols to construct sequence...</span>
-          : sentence.map((s, i) => (
-            <span key={i} className="flex flex-col items-center px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.15)] animate-scale-in">
-              <span className="text-xl drop-shadow-md">{s.emoji}</span>
-              <span className="text-[9px] font-black text-amber-300 uppercase tracking-widest mt-1">{s.label}</span>
+      {/* Sentence Builder Display */}
+      <div className="min-h-[5.5rem] p-4 rounded-3xl bg-[#040404] border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_2px_10px_rgba(255,255,255,0.02)] flex flex-wrap gap-2 items-start relative z-10 transition-all duration-300">
+        {sentence.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-[11px] text-zinc-600 font-black uppercase tracking-[0.2em] opacity-60">Tap symbols to construct sequence...</span>
+          </div>
+        ) : (
+          sentence.map((s, i) => (
+            <span key={i} className="flex flex-col items-center px-4 py-2 rounded-2xl bg-gradient-to-b from-amber-500/20 to-amber-500/5 border border-amber-500/40 shadow-[0_5px_15px_rgba(245,158,11,0.15)] animate-scale-in transform transition-transform hover:-translate-y-1">
+              <span className="text-2xl drop-shadow-lg">{s.emoji}</span>
+              <span className="text-[10px] font-black text-amber-300 uppercase tracking-widest mt-1.5">{s.label}</span>
             </span>
           ))
-        }
+        )}
       </div>
 
-      {/* Category tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide relative z-10">
+      {/* Category Navigation Pills */}
+      <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar relative z-10 px-1">
         {Object.keys(SYMBOL_CATEGORIES).map(cat => (
           <button key={cat} onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95
+            className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all duration-300 active:scale-95
                          ${activeCategory === cat
-                ? 'bg-amber-500/20 border border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                : 'bg-zinc-950/60 border border-white/5 text-zinc-500 hover:text-amber-400 hover:border-amber-500/30'}`}>
+                ? 'bg-amber-500 border border-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                : 'bg-[#0a0a0a] border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 hover:bg-white/5'}`}>
             {cat}
           </button>
         ))}
       </div>
 
-      {/* Symbol grid */}
-      <div className="grid grid-cols-3 gap-3 relative z-10">
+      {/* Primary Symbol Grid */}
+      <div className="flex-1 grid grid-cols-3 sm:grid-cols-3 gap-3 sm:gap-4 relative z-10 overflow-y-auto custom-scrollbar pr-1 pb-2">
         {SYMBOL_CATEGORIES[activeCategory].map(sym => (
           <button key={sym.id} onClick={() => addSymbol(sym)}
-            className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-zinc-950/60 backdrop-blur-sm border border-white/5
-                         hover:bg-amber-500/15 hover:border-amber-500/40 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)] transition-all duration-300 active:scale-[0.95] group">
-            <span className="text-4xl filter drop-shadow-lg group-hover:scale-110 transition-transform">{sym.emoji}</span>
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest group-hover:text-amber-400 transition-colors">{sym.label}</span>
+            className="group relative flex flex-col items-center justify-center gap-3 aspect-square rounded-[2rem] bg-[#060606] border border-white/5 shadow-[0_5px_20px_rgba(0,0,0,0.5)]
+                         hover:bg-[#0a0a0a] hover:border-amber-500/30 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] transition-all duration-300 hover:-translate-y-1 active:scale-[0.92] active:translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="text-4xl sm:text-5xl filter drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300 relative z-10">{sym.emoji}</span>
+            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.15em] group-hover:text-amber-400 transition-colors relative z-10">{sym.label}</span>
           </button>
         ))}
       </div>
 
-      {/* Actions */}
-      <div className="grid grid-cols-4 gap-3 pt-2 relative z-10">
+      {/* Control Actions Row */}
+      <div className="grid grid-cols-4 gap-3 relative z-10 mt-auto pt-2">
         <button onClick={removeLastSymbol} disabled={!sentence.length}
-          className="col-span-1 py-3 rounded-2xl bg-zinc-950/60 border border-white/10 text-zinc-400 text-lg font-black
-                       hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-all disabled:opacity-30 disabled:hover:border-white/10 active:scale-95 shadow-sm">
+          className="col-span-1 h-14 rounded-2xl bg-[#060606] border border-white/10 text-zinc-400 text-xl font-black
+                       hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-all duration-300 disabled:opacity-30 disabled:hover:border-white/10 active:scale-95 shadow-lg flex items-center justify-center">
           ←
         </button>
         <button onClick={() => setSentence([])} disabled={!sentence.length}
-          className="col-span-1 py-3 rounded-2xl bg-zinc-950/60 border border-white/10 text-rose-400 text-lg font-black
-                       hover:bg-rose-500/10 hover:border-rose-500/30 transition-all disabled:opacity-30 disabled:hover:border-white/10 active:scale-95 shadow-sm">
+          className="col-span-1 h-14 rounded-2xl bg-[#060606] border border-white/10 text-rose-400 text-xl font-black
+                       hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/30 transition-all duration-300 disabled:opacity-30 disabled:hover:border-white/10 active:scale-95 shadow-lg flex items-center justify-center">
           ✕
         </button>
         <button onClick={sendSentence} disabled={!sentence.length}
-          className="col-span-2 py-3 rounded-2xl bg-amber-500/20 border border-amber-500/40
-                       text-amber-400 text-[10px] uppercase tracking-widest font-black hover:bg-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all disabled:opacity-30 disabled:hover:shadow-none active:scale-95 flex items-center justify-center gap-3">
-          <span className="text-xl">🗣</span>
-          <span>Speak & Send</span>
+          className="col-span-2 h-14 rounded-2xl bg-amber-500 hover:bg-amber-400 border border-amber-300 text-black text-[11px] uppercase tracking-widest font-black shadow-[0_5px_25px_rgba(245,158,11,0.4)] transition-all duration-300 disabled:opacity-30 disabled:hover:bg-amber-500 disabled:hover:shadow-none active:scale-95 flex items-center justify-center gap-3 overflow-hidden relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
+          <span className="text-xl relative z-10">🗣</span>
+          <span className="relative z-10">Speak & Send</span>
         </button>
       </div>
     </div>

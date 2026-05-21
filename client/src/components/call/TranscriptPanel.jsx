@@ -140,11 +140,11 @@ export default function TranscriptPanel({ transcript = [], colorMap = {}, onClea
   };
 
   return (
-    <div className="flex flex-col h-full rounded-2xl overflow-hidden border border-white/10 bg-zinc-950/80 backdrop-blur-xl shadow-2xl relative">
+    <div className="flex flex-col h-full rounded-[2rem] overflow-hidden border border-white/10 bg-[#040404]/90 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative">
       <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-rose-500/5 pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0 relative z-10 bg-black/20">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0 relative z-10 bg-black/40 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20">
             <MessageSquare size={14} className="text-teal-400" />
