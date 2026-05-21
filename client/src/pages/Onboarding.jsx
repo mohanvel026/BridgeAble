@@ -1,6 +1,6 @@
-// client/src/pages/Onboarding.jsx — v4 (stable, self-contained)
+// client/src/pages/Onboarding.jsx — v5 (stable, self-contained, Zero-Render)
 // Complete blink calibration wizard using MediaPipe FaceMesh
-// All signal processing runs inside refs — no stale closure bugs
+// All signal processing runs inside refs — zero stale closures, zero React renders.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,8 +9,8 @@ import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 // ── Landmark indices ──────────────────────────────────────────────────────────
-const LEFT_EYE = [362, 385, 387, 263, 373, 380];
-const RIGHT_EYE = [33, 160, 158, 133, 153, 144];
+const LEFT_EYE  = [362, 385, 387, 263, 373, 380];
+const RIGHT_EYE = [33,  160, 158, 133, 153, 144];
 
 // ── EAR (Eye Aspect Ratio) — Soukupová & Čech 2016 ───────────────────────────
 function dist(a, b) {
@@ -92,20 +92,25 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { updateUser } = useAuthStore();
 
-  // DOM refs
+  // DOM refs for direct manipulation (Bypassing React render cycle for 60fps data)
   const videoRef = useRef(null);
   const oscRef = useRef(null);
+  const healthBarRef = useRef(null);
+  const eyeStateRef = useRef(null);
+  const eyeDotRef = useRef(null);
+  const earValueRef = useRef(null);
+  
   const faceMeshRef = useRef(null);
   const cameraRef = useRef(null);
   const mountedRef = useRef(true);
 
-  // ── All blink signal state lives in refs to avoid stale closures ─────────
+  // Core logic refs
   const earBufL = useRef([]);
   const earBufR = useRef([]);
   const baselineBuf = useRef([]);
   const baselineEAR = useRef(null);
-  const threshClose = useRef(null);   // set after step 1 calibration
-  const threshOpen = useRef(null);   // hysteresis open threshold
+  const threshClose = useRef(null);
+  const threshOpen = useRef(null);
   const isClosedRef = useRef(false);
   const blinkStart = useRef(null);
   const lastOpenedAt = useRef(0);
@@ -114,11 +119,9 @@ export default function Onboarding() {
   const dashMsRef = useRef(400);
   const earHistory = useRef([]);
 
-  // ── React UI state ────────────────────────────────────────────────────────
+  // Low-frequency React State
   const [step, setStep] = useState(1);
   const [blinkCount, setBlinkCount] = useState(0);
-  const [isEyeClosed, setIsEyeClosed] = useState(false);
-  const [currentEAR, setCurrentEAR] = useState(0);
   const [dashMs, setDashMs] = useState(null);
   const [morse, setMorse] = useState('');
   const [cameraOK, setCameraOK] = useState(false);
@@ -126,21 +129,11 @@ export default function Onboarding() {
   const [basePct, setBasePct] = useState(0);
   const [saving, setSaving] = useState(false);
 
-  // ── Step ref stays in sync ────────────────────────────────────────────────
   useEffect(() => { stepRef.current = step; }, [step]);
 
-  // ── Oscilloscope redraws whenever earHistory ref is updated ───────────────
-  // We use a separate render-tick trigger
-  const [oscTick, setOscTick] = useState(0);
-  useEffect(() => {
-    drawOscilloscope(oscRef.current, earHistory.current, threshClose.current);
-  }, [oscTick]);
-
-  // ── Blink event handler — called from onResults via ref ──────────────────
   const handleBlinkRef = useRef(null);
   handleBlinkRef.current = (duration) => {
     const s = stepRef.current;
-
     if (s === 2) {
       const n = blinkCountR.current + 1;
       blinkCountR.current = n;
@@ -155,59 +148,66 @@ export default function Onboarding() {
       toast.success(`Long blink: ${duration}ms ✓`);
       setTimeout(() => { setStep(4); stepRef.current = 4; }, 500);
     } else if (s === 4) {
-      const sym = duration >= dashMsRef.current ? '— ' : '· ';
-      setMorse(prev => prev + sym);
+      setMorse(prev => prev + (duration >= dashMsRef.current ? '— ' : '· '));
     }
   };
 
-  // ── Frame processing — defined once, reads all values from refs ───────────
   const onResults = useCallback((results) => {
-    if (!mountedRef.current) return;
-    if (!results.multiFaceLandmarks?.length) return;
+    if (!mountedRef.current || !results.multiFaceLandmarks?.length) return;
 
     const lm = results.multiFaceLandmarks[0];
-
-    // 1. Per-eye EAR
     const rawL = computeEAR(lm, LEFT_EYE);
     const rawR = computeEAR(lm, RIGHT_EYE);
-
-    // 2. 5-frame rolling median smoothing
     const medL = rollingMedian(earBufL.current, rawL, 5);
     const medR = rollingMedian(earBufR.current, rawR, 5);
 
-    // 3. Bilateral symmetry gate
     if (Math.abs(medL - medR) > 0.07) return;
 
     const ear = (medL + medR) / 2;
-    setCurrentEAR(+ear.toFixed(3));
+    
+    // 1. Direct DOM Updates (Zero React Re-renders)
+    if (earValueRef.current) {
+      earValueRef.current.innerText = `EAR ${ear.toFixed(3)}`;
+    }
+    
+    if (healthBarRef.current) {
+      const pct = Math.min(100, Math.max(0, Math.round((ear / (baselineEAR.current || 0.30)) * 100)));
+      healthBarRef.current.style.width = `${pct}%`;
+    }
 
-    // Update oscilloscope buffer
     earHistory.current.push(ear);
     if (earHistory.current.length > 80) earHistory.current.shift();
-    setOscTick(t => t + 1);
+    
+    // Draw canvas synchronously
+    if (oscRef.current) {
+      requestAnimationFrame(() => {
+        drawOscilloscope(oscRef.current, earHistory.current, threshClose.current);
+      });
+    }
 
-    // 4. Step 1 — build open-eye baseline
+    // 2. Logic processing
     if (stepRef.current === 1 && ear > 0.18) {
       baselineBuf.current.push(ear);
-      const pct = Math.min(100, Math.round((baselineBuf.current.length / 60) * 100));
-      setBasePct(pct);
+      const computedPct = Math.min(100, Math.round((baselineBuf.current.length / 60) * 100));
+      
+      // Update state for progress text
+      if (computedPct % 10 === 0) {
+          setBasePct(computedPct);
+      }
 
       if (baselineBuf.current.length >= 60) {
         const mean = iqrMean(baselineBuf.current);
         baselineEAR.current = mean;
-        threshClose.current = mean * 0.82;  // 82% of open-eye EAR
-        threshOpen.current = mean * 0.90;  // 90% for hysteresis
-        console.info(`[Calibration] baseline=${mean.toFixed(3)} close@${threshClose.current.toFixed(3)} open@${threshOpen.current.toFixed(3)}`);
+        threshClose.current = mean * 0.82;
+        threshOpen.current = mean * 0.90;
         toast.success('Baseline done! Blink 5 times.');
         setStep(2); stepRef.current = 2;
       }
       return;
     }
 
-    // 5. Need baseline before blink detection
     if (!threshClose.current) return;
 
-    // 6. Hysteresis blink detection — reads from refs, never stale
     const closedNow = ear < threshClose.current;
     const openNow = ear > threshOpen.current;
     const now = Date.now();
@@ -215,31 +215,48 @@ export default function Onboarding() {
     if (closedNow && !isClosedRef.current) {
       isClosedRef.current = true;
       blinkStart.current = now;
-      setIsEyeClosed(true);
+      
+      // Direct DOM mutation for eye state
+      if (eyeStateRef.current) {
+         eyeStateRef.current.innerText = 'CLOSED';
+         eyeStateRef.current.style.color = '#fb7185';
+      }
+      if (eyeDotRef.current) {
+         eyeDotRef.current.style.backgroundColor = '#fb7185';
+      }
+      if (healthBarRef.current) {
+         healthBarRef.current.style.background = 'linear-gradient(90deg,#fb7185,#f43f5e)';
+      }
 
     } else if (openNow && isClosedRef.current) {
       isClosedRef.current = false;
-      setIsEyeClosed(false);
+      
+      if (eyeStateRef.current) {
+         eyeStateRef.current.innerText = 'OPEN';
+         eyeStateRef.current.style.color = '#2dd4bf';
+      }
+      if (eyeDotRef.current) {
+         eyeDotRef.current.style.backgroundColor = '#2dd4bf';
+      }
+      if (healthBarRef.current) {
+         healthBarRef.current.style.background = 'linear-gradient(90deg,#22d3ee,#2dd4bf)';
+      }
 
       const dur = blinkStart.current ? now - blinkStart.current : 0;
       blinkStart.current = null;
 
-      // Refractory period (200ms)
       if (now - lastOpenedAt.current < 200) return;
       lastOpenedAt.current = now;
 
-      // Duration gate — ignore < 80ms twitches
-      if (dur < 80) return;
-
-      handleBlinkRef.current(dur);
+      if (dur >= 80) handleBlinkRef.current(dur);
     }
-  }, []); // ← empty deps is SAFE now — all values read from refs
+  }, []);
 
   // ── Init FaceMesh ─────────────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
     let cam = null;
-    let fm = null;
+    let fm  = null;
 
     (async () => {
       try {
@@ -248,8 +265,8 @@ export default function Onboarding() {
           import('@mediapipe/camera_utils').catch(() => null),
         ]);
 
-        const FaceMesh = fmMod?.FaceMesh || fmMod?.default?.FaceMesh || window.FaceMesh;
-        const Camera = camMod?.Camera || camMod?.default?.Camera || window.Camera;
+        const FaceMesh = fmMod?.FaceMesh  || fmMod?.default?.FaceMesh  || window.FaceMesh;
+        const Camera   = camMod?.Camera   || camMod?.default?.Camera   || window.Camera;
 
         if (!FaceMesh || !Camera) {
           if (mountedRef.current) setCameraErr('MediaPipe unavailable. Please use Chrome or Edge.');
@@ -261,10 +278,10 @@ export default function Onboarding() {
           locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
         });
         fm.setOptions({
-          maxNumFaces: 1,
-          refineLandmarks: true,
+          maxNumFaces:            1,
+          refineLandmarks:        true,
           minDetectionConfidence: 0.65,
-          minTrackingConfidence: 0.65,
+          minTrackingConfidence:  0.65,
         });
         fm.onResults(onResults);
         faceMeshRef.current = fm;
@@ -289,8 +306,8 @@ export default function Onboarding() {
 
     return () => {
       mountedRef.current = false;
-      try { cam?.stop(); } catch (_) { }
-      try { fm?.close(); } catch (_) { }
+      try { cam?.stop(); }   catch (_) {}
+      try { fm?.close(); }   catch (_) {}
     };
   }, [onResults]);
 
@@ -310,17 +327,15 @@ export default function Onboarding() {
     }
   };
 
-  const earPct = Math.min(100, Math.round((currentEAR / (baselineEAR.current || 0.30)) * 100));
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'var(--bg-primary)' }}>
+         style={{ background: 'var(--bg-primary)' }}>
       <div className="w-full max-w-2xl">
 
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4"
-            style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)' }}>
+               style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)' }}>
             <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
             <span className="text-xs text-purple-400 font-medium">Blink Calibration</span>
           </div>
@@ -337,12 +352,12 @@ export default function Onboarding() {
           {STEPS.map(s => (
             <div key={s.id} className={`flex items-center gap-2 transition-all ${step >= s.id ? 'opacity-100' : 'opacity-30'}`}>
               <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                style={step > s.id
-                  ? { background: '#2dd4bf', color: '#040d0c' }
-                  : step === s.id
-                    ? { background: '#8b5cf6', color: '#fff' }
-                    : { border: '2px solid var(--border)', color: 'var(--text-muted)' }
-                }>
+                   style={step > s.id
+                     ? { background: '#2dd4bf', color: '#040d0c' }
+                     : step === s.id
+                       ? { background: '#8b5cf6', color: '#fff' }
+                       : { border: '2px solid var(--border)', color: 'var(--text-muted)' }
+                   }>
                 {step > s.id ? '✓' : s.id}
               </div>
             </div>
@@ -350,196 +365,133 @@ export default function Onboarding() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl p-6" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <div className="rounded-2xl p-6 shadow-2xl relative overflow-hidden" style={{ background: '#0a0a0a', border: '1px solid #27272a' }}>
+          
+          {/* Ambient Glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 blur-[80px] pointer-events-none" />
 
           {/* Camera + overlays */}
-          <div className="relative rounded-xl overflow-hidden mb-5"
-            style={{ aspectRatio: '4/3', background: '#000' }}>
+          <div className="relative rounded-2xl overflow-hidden mb-6 shadow-inner border border-white/5"
+               style={{ aspectRatio: '4/3', background: '#000' }}>
 
             <video ref={videoRef} className="w-full h-full object-cover"
-              style={{ transform: 'scaleX(-1)' }} playsInline muted />
+                   style={{ transform: 'scaleX(-1)' }} playsInline muted />
 
             {/* Loading */}
             {!cameraOK && !cameraErr && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center"
-                style={{ background: 'var(--bg-secondary)' }}>
-                <div className="w-10 h-10 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin mb-3" />
-                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Loading FaceMesh AI…</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
+                <div className="w-10 h-10 border-2 border-teal-500/30 border-t-teal-400 rounded-full animate-spin mb-3" />
+                <p className="text-sm font-semibold tracking-wide text-zinc-300">Booting AI FaceMesh…</p>
               </div>
             )}
 
             {/* Error */}
             {cameraErr && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
-                style={{ background: 'var(--bg-secondary)' }}>
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-black/90 backdrop-blur-md">
                 <div className="text-4xl mb-3">⚠️</div>
-                <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Camera Error</p>
-                <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>{cameraErr}</p>
+                <p className="font-bold mb-1 text-white text-lg">Camera Error</p>
+                <p className="text-sm mb-4 text-rose-400 font-medium">{cameraErr}</p>
                 <button onClick={() => window.location.reload()}
-                  className="px-4 py-2 rounded-lg text-sm"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+                        className="px-5 py-2.5 rounded-xl text-sm font-bold bg-white/10 hover:bg-white/20 transition-colors text-white border border-white/20">
                   Try Again
                 </button>
               </div>
             )}
 
-            {/* Eye state badge */}
+            {/* Zero-Render Fast DOM Eye State Badge */}
             {cameraOK && (
-              <div className="absolute top-3 right-3 rounded-xl px-3 py-2"
-                style={{ background: 'rgba(4,13,12,0.88)', backdropFilter: 'blur(8px)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center gap-2 mb-1"
-                  style={{ color: isEyeClosed ? '#fb7185' : '#2dd4bf' }}>
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'currentColor' }} />
-                  <span className="text-xs font-mono font-bold">{isEyeClosed ? 'CLOSED' : 'OPEN'}</span>
+              <div className="absolute top-4 right-4 rounded-xl px-3 py-2.5 shadow-[0_5px_15px_rgba(0,0,0,0.5)] border border-white/10"
+                   style={{ background: 'rgba(4,4,4,0.8)', backdropFilter: 'blur(12px)' }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span ref={eyeDotRef} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#2dd4bf' }} />
+                  <span ref={eyeStateRef} className="text-xs font-mono font-bold" style={{ color: '#2dd4bf' }}>OPEN</span>
                 </div>
-                <div className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                  EAR {currentEAR.toFixed(3)}
-                </div>
-                {threshClose.current && (
-                  <div className="text-xs font-mono" style={{ color: 'rgba(251,113,133,0.8)' }}>
-                    thr {threshClose.current.toFixed(3)}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* EAR health bar */}
-            {cameraOK && (
-              <div className="absolute bottom-14 left-3 right-3">
-                <div className="rounded-full overflow-hidden h-1.5" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                  <div className="h-full rounded-full transition-all duration-75"
-                    style={{
-                      width: `${earPct}%`,
-                      background: isEyeClosed
-                        ? 'linear-gradient(90deg,#fb7185,#f43f5e)'
-                        : 'linear-gradient(90deg,#22d3ee,#2dd4bf)',
-                    }} />
+                <div ref={earValueRef} className="text-[10px] font-mono text-zinc-400 ml-4">
+                  EAR 0.000
                 </div>
               </div>
             )}
 
-            {/* Oscilloscope */}
+            {/* Canvas Oscilloscope */}
             {cameraOK && (
-              <div className="absolute bottom-3 left-3 right-3"
-                style={{
-                  height: '48px', borderRadius: '8px', overflow: 'hidden',
-                  border: '1px solid rgba(34,211,238,0.18)'
-                }}>
-                <canvas ref={oscRef} width={600} height={48}
-                  style={{ width: '100%', height: '100%', display: 'block' }} />
+              <div className="absolute bottom-4 left-4 rounded-xl overflow-hidden shadow-lg border border-white/10"
+                   style={{ width: 140, height: 60, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                <canvas ref={oscRef} width={140} height={60} className="w-full h-full" />
               </div>
             )}
           </div>
 
-          {/* Step UI */}
+          {/* Dynamic Instructions */}
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl mb-3"
-              style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)' }}>
-              <span className="font-mono text-sm font-semibold" style={{ color: '#a78bfa' }}>STEP {step}</span>
-            </div>
-            <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-              {STEPS[step - 1].title}
-            </h3>
-            <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
-              {STEPS[step - 1].subtitle}
-            </p>
+            <h2 className="text-xl font-bold text-white mb-2">{STEPS[step - 1].title}</h2>
+            <p className="text-sm font-medium text-zinc-400 mb-6">{STEPS[step - 1].subtitle}</p>
 
-            {/* Step 1 — baseline progress */}
+            {/* Step 1: Base Calibration */}
             {step === 1 && (
               <div className="max-w-xs mx-auto">
-                <div className="flex justify-between text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                  <span>Auto-calibrating…</span><span>{basePct}%</span>
+                <div className="flex justify-between text-xs font-semibold mb-2 text-zinc-300 tracking-wide uppercase">
+                  <span>Auto-calibrating</span>
+                  <span className="text-teal-400">{basePct}%</span>
                 </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
-                  <div className="h-full rounded-full transition-all duration-200"
-                    style={{ width: `${basePct}%`, background: 'linear-gradient(90deg,#a78bfa,#7c3aed)' }} />
+                <div className="h-2.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5 shadow-inner">
+                  {/* Zero-Render Health Bar */}
+                  <div ref={healthBarRef} 
+                       className="h-full rounded-full transition-all duration-75 ease-out w-0" 
+                       style={{ background: 'linear-gradient(90deg, #22d3ee, #2dd4bf)' }} />
                 </div>
-                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                  Keep your eyes relaxed and open, looking at the camera
-                </p>
+                <p className="text-[10px] text-zinc-500 font-medium mt-3">Keep eyes relaxed, looking straight ahead.</p>
               </div>
             )}
 
-            {/* Step 2 — blink counter */}
+            {/* Step 2: 5 Blinks */}
             {step === 2 && (
-              <div className="flex items-center justify-center gap-3">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="w-11 h-11 rounded-full border-2 flex items-center justify-center font-bold text-sm transition-all duration-300"
-                    style={i < blinkCount
-                      ? { background: 'rgba(167,139,250,0.2)', borderColor: '#a78bfa', color: '#a78bfa', transform: 'scale(1.12)' }
-                      : { borderColor: 'var(--border)', color: 'var(--text-muted)' }
-                    }>
-                    {i < blinkCount ? '✓' : i + 1}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Step 3 — long blink */}
-            {step === 3 && (
-              <div>
-                {dashMs ? (
-                  <div className="inline-flex items-center gap-3 px-5 py-3 rounded-xl"
-                    style={{ background: 'rgba(45,212,191,0.1)', border: '1px solid rgba(45,212,191,0.25)' }}>
-                    <span className="text-2xl font-mono font-bold text-teal-400">{dashMs}ms</span>
-                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>dash captured ✓</span>
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl"
-                    style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)' }}>
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-sm text-amber-400">Waiting for long blink…</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 4 — practice + save */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <div className="rounded-xl p-4"
-                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-                  <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-                    Short = <span className="text-cyan-400 font-mono">·</span> &nbsp;
-                    Long = <span className="text-violet-400 font-mono">—</span>
-                  </p>
-                  <div className="font-mono text-lg tracking-widest min-h-8"
-                    style={{ color: 'var(--accent-cyan)' }}>
-                    {morse || <span style={{ color: 'var(--text-muted)' }}>Blink to practice…</span>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 text-left text-xs">
-                  {[
-                    { label: 'Baseline EAR', val: baselineEAR.current?.toFixed(3) || '—', color: '#2dd4bf' },
-                    { label: 'Close threshold', val: threshClose.current?.toFixed(3) || '—', color: '#fb7185' },
-                    { label: 'Dash duration', val: `${dashMsRef.current}ms`, color: '#a78bfa' },
-                  ].map(item => (
-                    <div key={item.label} className="rounded-xl p-3"
-                      style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-                      <p style={{ color: 'var(--text-muted)' }} className="mb-1">{item.label}</p>
-                      <p className="font-mono font-bold" style={{ color: item.color }}>{item.val}</p>
-                    </div>
+              <div className="flex flex-col items-center">
+                <div className="text-4xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] mb-2">{blinkCount} <span className="text-lg text-zinc-500">/ 5</span></div>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className={`w-10 h-2.5 rounded-full transition-all duration-300 ${
+                      blinkCount >= i ? 'bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.5)]' : 'bg-zinc-800'
+                    }`} />
                   ))}
                 </div>
+              </div>
+            )}
 
-                <button onClick={handleSave} disabled={saving}
-                  className="w-full py-3 rounded-xl font-semibold text-sm transition-all"
-                  style={{
-                    background: saving ? 'var(--bg-secondary)' : 'linear-gradient(135deg,#22d3ee,#2dd4bf)',
-                    color: saving ? 'var(--text-muted)' : '#040d0c',
-                    cursor: saving ? 'not-allowed' : 'pointer',
-                  }}>
-                  {saving ? 'Saving…' : 'Save & Go to Dashboard →'}
-                </button>
+            {/* Step 3: Long Blink Dash */}
+            {step === 3 && (
+              <div className="flex flex-col items-center">
+                {dashMs ? (
+                  <div className="text-3xl font-bold text-teal-400 mb-2">{dashMs}ms</div>
+                ) : (
+                  <div className="w-12 h-12 rounded-full border-2 border-zinc-700 flex items-center justify-center mb-2">
+                    <span className="animate-ping w-4 h-4 rounded-full bg-zinc-600" />
+                  </div>
+                )}
+                <p className="text-xs text-zinc-500 font-medium max-w-[200px]">Close eyes and hold for about 1 second, then open.</p>
+              </div>
+            )}
+
+            {/* Step 4: Test & Save */}
+            {step === 4 && (
+              <div className="flex flex-col items-center w-full max-w-sm mx-auto">
+                <div className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-4 min-h-[4rem] flex items-center justify-center text-3xl font-black tracking-[0.2em] text-white shadow-inner mb-6">
+                  {morse || <span className="text-zinc-700 text-sm tracking-normal uppercase font-semibold">Test your blinks</span>}
+                </div>
+                <div className="flex gap-3 w-full">
+                  <button onClick={() => setMorse('')}
+                          className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors border border-zinc-700">
+                    Clear Input
+                  </button>
+                  <button onClick={handleSave} disabled={saving}
+                          className="flex-[2] py-3.5 rounded-xl font-black uppercase tracking-widest text-[11px] bg-teal-500 hover:bg-teal-400 text-black shadow-[0_10px_20px_rgba(45,212,191,0.3)] transition-all active:scale-95 disabled:opacity-50">
+                    {saving ? 'Saving...' : 'Finish Setup'}
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        </div>
 
-        <p className="text-center text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
-          You can re-calibrate anytime from Profile → Settings
-        </p>
+        </div>
       </div>
     </div>
   );
