@@ -250,8 +250,17 @@ export default function CallRoom() {
     const utterance = new SpeechSynthesisUtterance(outputText);
     utterance.rate = 1.0;
 
-    utterance.onend = () => processTtsExecutionQueue();
-    utterance.onerror = () => processTtsExecutionQueue();
+    utterance.onstart = () => { window.IS_TTS_SPEAKING = true; };
+    
+    utterance.onend = () => {
+      window.IS_TTS_SPEAKING = false;
+      processTtsExecutionQueue();
+    };
+    
+    utterance.onerror = () => {
+      window.IS_TTS_SPEAKING = false;
+      processTtsExecutionQueue();
+    };
 
     window.speechSynthesis.speak(utterance);
   }, []);

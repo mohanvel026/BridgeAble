@@ -46,7 +46,7 @@ function useSpeechRecognition({ onFinalTranscript, onInterimTranscript, language
     instance.lang = language;
 
     instance.onresult = (event) => {
-      if (!sessionActiveRef.current) return;
+      if (!sessionActiveRef.current || window.IS_TTS_SPEAKING) return;
       
       let interimTranscript = '';
       let finalTranscript = '';
@@ -154,6 +154,19 @@ export default function VoicePanel({ onSend, autoStart = false }) {
     language,
     autoStart,
   });
+
+  // Auto-flush interim transcript to final after 1.5s of silence
+  useEffect(() => {
+    if (!interimText) return;
+    const flushTimer = setTimeout(() => {
+      onSend(interimText.trim(), 0.9);
+      setInterimText('');
+      // Force restart engine to clear its internal buffer
+      stopListening();
+      setTimeout(startListening, 100);
+    }, 1500);
+    return () => clearTimeout(flushTimer);
+  }, [interimText, onSend, stopListening, startListening]);
 
   // Setup real-time audio visualization when listening
   useEffect(() => {
