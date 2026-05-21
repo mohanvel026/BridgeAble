@@ -294,6 +294,16 @@ export default function GesturePanel({ onSend }) {
           width={320} height={240}
         />
 
+        {/* Privacy Assurance Badge */}
+        {cameraReady && (
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded border bg-amber-500/10 border-amber-500/20 shadow-md backdrop-blur-md z-20">
+            <span className="text-amber-500 text-[10px]">🔒</span>
+            <span className="text-[7.5px] font-black uppercase tracking-[0.15em] text-amber-500">
+              Local Tracking Only · Not Transmitted
+            </span>
+          </div>
+        )}
+
         {/* Loading spinner */}
         {!cameraReady && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm z-10">

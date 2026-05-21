@@ -229,11 +229,21 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
 
         {/* Blink Indicator Overlay */}
         {status === 'ready' && (
-          <div className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg">
-            <div className={`w-2.5 h-2.5 rounded-full transition-all ${isEyeClosed ? 'bg-rose-500 shadow-[0_0_12px_#f43f5e] animate-pulse' : 'bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]'}`} />
-            <span className="text-[9px] font-black uppercase tracking-widest text-white">
-              {isEyeClosed ? 'CLOSED' : 'OPEN'}
-            </span>
+          <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {/* Eye state indicator */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg w-max">
+              <div className={`w-2.5 h-2.5 rounded-full transition-all ${isEyeClosed ? 'bg-rose-500 shadow-[0_0_12px_#f43f5e] animate-pulse' : 'bg-teal-400 shadow-[0_0_8px_rgba(45,212,191,0.5)]'}`} />
+              <span className="text-[9px] font-black uppercase tracking-widest text-white">
+                {isEyeClosed ? 'CLOSED' : 'OPEN'}
+              </span>
+            </div>
+            {/* Privacy Assurance Badge */}
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded border bg-amber-500/10 border-amber-500/20 shadow-md backdrop-blur-md w-max">
+              <span className="text-amber-500 text-[10px]">🔒</span>
+              <span className="text-[7.5px] font-black uppercase tracking-[0.15em] text-amber-500">
+                Local Tracking Only · Not Transmitted
+              </span>
+            </div>
           </div>
         )}
         
