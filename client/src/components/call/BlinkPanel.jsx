@@ -240,7 +240,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
         <div className="relative w-full md:w-[280px] h-full rounded-2xl overflow-hidden bg-black shadow-inner border border-white/5 flex-shrink-0 group">
           <video 
             ref={videoRef} 
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity blur-[2px]"
             style={{ transform: 'scaleX(-1)' }}
             playsInline 
             muted 
@@ -252,6 +252,23 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
             className="absolute inset-0 w-full h-full pointer-events-none"
             style={{ transform: 'scaleX(-1)' }}
           />
+
+          {/* High-Visibility Privacy Assurance Overlay */}
+          {status === 'ready' && (
+            <div className="absolute top-0 left-0 w-full bg-gradient-to-r from-amber-500/20 via-amber-500/5 to-transparent border-b border-amber-500/30 p-2 backdrop-blur-md z-20 flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-amber-500/20 border border-amber-500 flex items-center justify-center animate-pulse shrink-0">
+                <span className="text-amber-400 text-[10px] drop-shadow-md">🔒</span>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-400 drop-shadow-md leading-tight">
+                  Privacy Mode Active
+                </p>
+                <p className="text-[7px] font-bold uppercase tracking-widest text-amber-500/80 leading-tight">
+                  Local AI Sensor. Video NOT transmitted.
+                </p>
+              </div>
+            </div>
+          )}
 
           {status === 'loading' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">

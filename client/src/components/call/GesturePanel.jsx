@@ -285,7 +285,7 @@ export default function GesturePanel({ onSend }) {
            style={{ aspectRatio: '4/3' }}>
         <video
           ref={videoRef}
-          className="w-full h-full object-cover scale-x-[-1]"
+          className="w-full h-full object-cover scale-x-[-1] opacity-40 mix-blend-luminosity blur-[2px]"
           playsInline muted autoPlay
         />
         <canvas
@@ -294,13 +294,20 @@ export default function GesturePanel({ onSend }) {
           width={320} height={240}
         />
 
-        {/* Privacy Assurance Badge */}
+        {/* High-Visibility Privacy Assurance Overlay */}
         {cameraReady && (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2 py-1 rounded border bg-amber-500/10 border-amber-500/20 shadow-md backdrop-blur-md z-20">
-            <span className="text-amber-500 text-[10px]">🔒</span>
-            <span className="text-[7.5px] font-black uppercase tracking-[0.15em] text-amber-500">
-              Local Tracking Only · Not Transmitted
-            </span>
+          <div className="absolute top-0 left-0 w-full bg-gradient-to-r from-amber-500/20 via-amber-500/5 to-transparent border-b border-amber-500/30 p-2.5 backdrop-blur-md z-20 flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500 flex items-center justify-center animate-pulse">
+              <span className="text-amber-400 text-xs drop-shadow-md">🔒</span>
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-400 drop-shadow-md leading-tight">
+                Privacy Mode Active
+              </p>
+              <p className="text-[8.5px] font-bold uppercase tracking-widest text-amber-500/80">
+                Camera is local sensor only. Video is NOT transmitted.
+              </p>
+            </div>
           </div>
         )}
 
