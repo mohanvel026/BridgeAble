@@ -43,17 +43,72 @@ function rollingMedian(buf, val, size = 5) {
 
 // ── Calibration steps ─────────────────────────────────────────────────────────
 const STEPS = [
-  { id: 1, title: 'Keep eyes open naturally', subtitle: 'Hold still for 2 seconds — we are measuring your open-eye baseline', target: 60 },
-  { id: 2, title: 'Blink normally 5 times',   subtitle: 'Blink at your natural comfortable pace',                               target: 5  },
-  { id: 3, title: 'Do one long blink (hold)',  subtitle: 'Close your eyes and hold for about 1 second, then open',              target: 1  },
-  { id: 4, title: 'Practice navigation',       subtitle: 'Short blink = move forward · Long blink = go back · Double short = select', target: 0  },
+  { id: 1, title: 'Keep eyes open naturally',    subtitle: 'Look at the camera — we are auto-calibrating your personal EAR baseline',     target: 60 },
+  { id: 2, title: 'Blink normally 5 times',        subtitle: 'Blink at your natural pace',                                                  target: 5  },
+  { id: 3, title: 'Do one long blink (hold ~1s)', subtitle: 'Close your eyes and hold for about 1 second, then open',                      target: 1  },
+  { id: 4, title: 'Practice navigation',           subtitle: 'Short blink = next · Long blink = back · Double short = select',             target: 0  },
 ];
+
+// Draw EAR oscilloscope on canvas
+function drawOscilloscope(canvas, earHistory, threshClose) {
+  if (!canvas || !earHistory.length) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = 'rgba(4,13,12,0.55)';
+  ctx.fillRect(0, 0, W, H);
+
+  const MIN_EAR = 0.10;
+  const MAX_EAR = 0.40;
+  const toY = v => H - ((v - MIN_EAR) / (MAX_EAR - MIN_EAR)) * H;
+
+  // Threshold line
+  if (threshClose) {
+    const ty = toY(threshClose);
+    ctx.strokeStyle = 'rgba(251,113,133,0.8)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, ty);
+    ctx.lineTo(W, ty);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(251,113,133,0.9)';
+    ctx.font = '9px monospace';
+    ctx.fillText(`threshold ${threshClose.toFixed(2)}`, 4, ty - 3);
+  }
+
+  // EAR line
+  if (earHistory.length < 2) return;
+  const step = W / (earHistory.length - 1);
+  ctx.strokeStyle = '#22d3ee';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = '#22d3ee';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  earHistory.forEach((v, i) => {
+    const x = i * step;
+    const y = toY(Math.max(MIN_EAR, Math.min(MAX_EAR, v)));
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Label
+  ctx.fillStyle = 'rgba(34,211,238,0.8)';
+  ctx.font = '9px monospace';
+  ctx.fillText('EAR', 4, 12);
+}
 
 export default function Onboarding() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuthStore();
 
   const videoRef   = useRef(null);
+  const oscCanvasRef = useRef(null); // oscilloscope canvas
   const faceMeshRef = useRef(null);
   const cameraRef  = useRef(null);
   const mountedRef = useRef(true);
@@ -83,11 +138,17 @@ export default function Onboarding() {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [baselineProgress, setBaselineProgress] = useState(0);
+  const [earHistory, setEarHistory] = useState([]);
   const [saving,      setSaving]      = useState(false);
   const blinkCountRef = useRef(0);
 
   // Keep stepRef in sync
   useEffect(() => { stepRef.current = step; }, [step]);
+
+  // Update oscilloscope visualization
+  useEffect(() => {
+    drawOscilloscope(oscCanvasRef.current, earHistory, threshClose.current);
+  }, [earHistory]);
 
   // ── Frame result handler ───────────────────────────────────────────────────
   const onResults = useCallback((results) => {
@@ -111,6 +172,12 @@ export default function Onboarding() {
     const ear = (medL + medR) / 2;
     setCurrentEAR(+ear.toFixed(3));
 
+    // Update oscilloscope history (60 frames)
+    setEarHistory(h => {
+      const next = [...h, ear];
+      return next.length > 60 ? next.slice(-60) : next;
+    });
+
     // 4. Step 1 — auto-calibrate open-eye baseline (60 stable open-eye frames)
     if (stepRef.current === 1 && ear > 0.20) {
       baselineBuf.current.push(ear);
@@ -118,15 +185,19 @@ export default function Onboarding() {
       setBaselineProgress(progress);
 
       if (baselineBuf.current.length >= 60) {
-        // Compute mean of collected open-eye samples
-        const mean = baselineBuf.current.reduce((a, b) => a + b, 0) / baselineBuf.current.length;
+        // Use IQR-filtered mean (removes outlier samples)
+        const sorted = [...baselineBuf.current].sort((a, b) => a - b);
+        const q1 = sorted[Math.floor(sorted.length * 0.25)];
+        const q3 = sorted[Math.floor(sorted.length * 0.75)];
+        const clean = sorted.filter(v => v >= q1 && v <= q3);
+        const mean = clean.reduce((a, b) => a + b, 0) / (clean.length || 1);
         baselineEAR.current = mean;
 
-        // Hysteresis thresholds
-        threshClose.current = mean * 0.85; // eye must drop to 85% of baseline to count as closed
-        threshOpen.current  = mean * 0.92; // eye must rise to 92% of baseline to count as open
+        // Hysteresis thresholds — scientifically tuned ratios
+        threshClose.current = mean * 0.85;
+        threshOpen.current  = mean * 0.92;
 
-        console.info(`[Calibration] Open-eye EAR: ${mean.toFixed(3)}, Close@${threshClose.current.toFixed(3)}, Open@${threshOpen.current.toFixed(3)}`);
+        console.info(`[Calibration] IQR baseline: ${mean.toFixed(3)} | close@${threshClose.current.toFixed(3)} | open@${threshOpen.current.toFixed(3)}`);
 
         toast.success('Baseline captured! Now blink 5 times.');
         setStep(2);
@@ -399,7 +470,20 @@ export default function Onboarding() {
                 </div>
               </div>
             )}
-          </div>
+
+            {/* EAR Oscilloscope overlay — live signal graph */}
+            {cameraReady && earHistory.length > 2 && (
+              <div className="absolute bottom-6 left-3 right-3"
+                   style={{ height: '52px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(34,211,238,0.15)' }}>
+                <canvas
+                  ref={oscCanvasRef}
+                  width={400}
+                  height={52}
+                  style={{ width: '100%', height: '100%', display: 'block' }}
+                />
+              </div>
+            )}
+          </div>{/* end camera container */}
 
           {/* Step content */}
           <div className="text-center">
