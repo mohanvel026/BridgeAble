@@ -180,28 +180,40 @@ export default function Dashboard() {
           
           <div className="lg:col-span-8 flex flex-col gap-8">
             {/* Main action buttons */}
-            <div className={`grid gap-5 animate-slide-up
+            <div className={`grid gap-6 animate-slide-up
                               ${isParalyzed ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
               {config.buttons.map((btn, i) => (
                 <button key={i} onClick={() => handleAction(btn.action)}
-                  className={`group relative overflow-hidden rounded-3xl border text-left transition-all duration-300 backdrop-blur-xl shadow-xl active:scale-95
-                               ${colorStyles[btn.color]} ${isParalyzed ? 'p-10 min-h-[250px]' : 'p-8 min-h-[180px]'}
+                  className={`group relative overflow-hidden rounded-[2rem] border-0 text-left transition-all duration-500 shadow-[0_10px_40px_rgba(0,0,0,0.5)] hover:shadow-[0_20px_60px_rgba(0,0,0,0.8)] hover:-translate-y-2 active:scale-95
+                               ${isParalyzed ? 'p-10 min-h-[250px]' : 'p-8 min-h-[200px]'}
                                ${i === 2 && !isParalyzed ? 'sm:col-span-2' : ''}`}
                   style={{ animationDelay: `${i * 100}ms` }}>
                   
-                  <div className={`absolute -bottom-10 -right-10 w-40 h-40 blur-[40px] rounded-full transition-opacity duration-500 opacity-50 group-hover:opacity-100
-                    ${btn.color === 'sky' ? 'bg-sky-500/30' :
-                      btn.color === 'violet' ? 'bg-violet-500/30' :
-                      btn.color === 'amber' ? 'bg-amber-500/30' :
-                      btn.color === 'rose' ? 'bg-rose-500/30' : 'bg-teal-500/30'}`} />
+                  {/* Glass Background layers */}
+                  <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-3xl" />
+                  <div className={`absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500
+                    ${btn.color === 'sky' ? 'bg-gradient-to-br from-sky-500 to-transparent' :
+                      btn.color === 'violet' ? 'bg-gradient-to-br from-violet-500 to-transparent' :
+                      btn.color === 'amber' ? 'bg-gradient-to-br from-amber-500 to-transparent' :
+                      btn.color === 'rose' ? 'bg-gradient-to-br from-rose-500 to-transparent' : 'bg-gradient-to-br from-teal-500 to-transparent'}`} />
+                  
+                  {/* Glowing Border */}
+                  <div className={`absolute inset-0 rounded-[2rem] border-2 border-white/5 group-hover:border-white/20 transition-colors z-10`} />
 
-                  <div className="relative z-10 flex flex-col h-full justify-between">
-                    <span className={`${isParalyzed ? 'text-6xl mb-6' : 'text-4xl mb-4'} block drop-shadow-md transition-transform duration-500 group-hover:-translate-y-2`}>{btn.icon}</span>
+                  {/* Giant ambient glow orb */}
+                  <div className={`absolute -bottom-10 -right-10 w-48 h-48 blur-[50px] rounded-full transition-all duration-700 opacity-40 group-hover:opacity-100 group-hover:scale-150
+                    ${btn.color === 'sky' ? 'bg-sky-500/40' :
+                      btn.color === 'violet' ? 'bg-violet-500/40' :
+                      btn.color === 'amber' ? 'bg-amber-500/40' :
+                      btn.color === 'rose' ? 'bg-rose-500/40' : 'bg-teal-500/40'}`} />
+
+                  <div className="relative z-20 flex flex-col h-full justify-between">
+                    <span className={`${isParalyzed ? 'text-[5rem] mb-6' : 'text-5xl mb-4'} block drop-shadow-2xl transition-transform duration-500 group-hover:-translate-y-3 group-hover:scale-110`}>{btn.icon}</span>
                     <div>
-                      <h3 className={`font-black tracking-tight ${isParalyzed ? 'text-4xl md:text-5xl' : 'text-2xl'} mb-2 ${textColors[btn.color]} drop-shadow-sm`}>
+                      <h3 className={`font-black tracking-tight ${isParalyzed ? 'text-4xl md:text-5xl' : 'text-2xl'} mb-2 ${textColors[btn.color]} drop-shadow-md`}>
                         {btn.label}
                       </h3>
-                      <p className={`font-medium text-zinc-300 ${isParalyzed ? 'text-lg' : 'text-sm'} uppercase tracking-wide`}>
+                      <p className={`font-bold text-white/60 ${isParalyzed ? 'text-lg' : 'text-sm'} uppercase tracking-widest`}>
                         {btn.sublabel}
                       </p>
                     </div>
@@ -211,9 +223,12 @@ export default function Dashboard() {
             </div>
 
             {/* Quick phrases */}
-            <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden animate-slide-up" style={{ animationDelay: '300ms' }}>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 blur-2xl rounded-full pointer-events-none" />
-              <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-4">Quick Communication</h2>
+            <div className="bg-zinc-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 lg:p-8 shadow-2xl relative overflow-hidden animate-slide-up" style={{ animationDelay: '300ms' }}>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 blur-[80px] rounded-full pointer-events-none" />
+              <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
+                Quick Communication
+              </h2>
               <div className="relative z-10">
                 <QuickPhrases compact />
               </div>
@@ -224,27 +239,31 @@ export default function Dashboard() {
           <div className="lg:col-span-4 flex flex-col gap-6 animate-slide-up" style={{ animationDelay: '400ms' }}>
             
             {/* Helper online status */}
-            <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest">Network Status</h2>
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse shadow-[0_0_8px_rgba(20,184,166,0.8)]" />
+            <div className="bg-zinc-900/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent pointer-events-none" />
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                <h2 className="text-xs font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                  Network Status
+                </h2>
+                <span className="text-[10px] text-zinc-600 font-black uppercase tracking-widest bg-zinc-950 px-2 py-1 rounded-md border border-white/5">Live</span>
               </div>
               
               {helpers.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-3 relative z-10">
                   {helpers.map(h => (
-                    <div key={h._id} className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-950 border border-white/5 shadow-inner hover:border-white/10 transition-colors group">
+                    <div key={h._id} className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-950/80 border border-white/5 shadow-lg hover:border-white/20 transition-all group hover:-translate-y-1">
                       <div className="relative">
                         {h.avatar
-                          ? <img src={h.avatar} className="w-12 h-12 rounded-xl object-cover shadow-md" alt={h.name} />
-                          : <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500/20 to-zinc-800 border border-teal-500/20 flex items-center justify-center text-white font-black shadow-md">{h.name[0]?.toUpperCase()}</div>
+                          ? <img src={h.avatar} className="w-14 h-14 rounded-xl object-cover shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/10 group-hover:border-teal-500/50 transition-colors" alt={h.name} />
+                          : <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-500/20 to-zinc-800 border border-teal-500/20 flex items-center justify-center text-white font-black shadow-[0_0_15px_rgba(0,0,0,0.5)] text-xl">{h.name[0]?.toUpperCase()}</div>
                         }
-                        <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-zinc-950
-                                          ${h.isOnline ? 'bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.6)]' : 'bg-zinc-600'}`} />
+                        <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-zinc-950
+                                          ${h.isOnline ? 'bg-teal-400 shadow-[0_0_12px_rgba(45,212,191,0.8)] animate-pulse' : 'bg-zinc-600'}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-white truncate">{h.name}</p>
-                        <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${h.isOnline ? 'text-teal-400' : 'text-zinc-500'}`}>
+                        <p className="font-black text-white text-base truncate group-hover:text-teal-300 transition-colors">{h.name}</p>
+                        <p className={`text-[10px] font-black uppercase tracking-[0.2em] mt-1 ${h.isOnline ? 'text-teal-400' : 'text-zinc-500'}`}>
                           {h.isOnline ? 'Online Now' : 'Offline'}
                         </p>
                       </div>
@@ -252,9 +271,11 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-3xl mb-3 opacity-50">👥</p>
-                  <p className="text-zinc-500 font-bold uppercase tracking-widest text-xs">No helpers connected</p>
+                <div className="text-center py-10 relative z-10">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-white/10">
+                    <p className="text-3xl opacity-50">👥</p>
+                  </div>
+                  <p className="text-zinc-500 font-black uppercase tracking-widest text-xs">No helpers connected</p>
                 </div>
               )}
             </div>
