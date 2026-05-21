@@ -262,7 +262,6 @@ export default function GesturePanel({ onSend }) {
   const clearSentence = () => { setSentence(''); setDetected(null); };
 
   return (
-  return (
     <div className="space-y-4 relative" role="region" aria-label="Sign language gesture detection">
 
       {/* Status badge */}
