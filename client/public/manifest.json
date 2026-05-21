@@ -1,0 +1,21 @@
+{
+  "short_name": "BridgeAble",
+  "name": "BridgeAble Medical Communication Platform",
+  "description": "Real-time communication and health tracking for individuals with disabilities.",
+  "icons": [
+    {
+      "src": "icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "theme_color": "#040d0c",
+  "background_color": "#040d0c"
+}

@@ -1,0 +1,289 @@
+/* client/src/index.css */
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=dm-sans@300,400,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Variables ─────────────────────────────────────── */
+:root {
+  --bg-primary: #040d0c;
+  --bg-secondary: #071a19;
+  --bg-card: #0d2421;
+  --bg-card-hover: #122e2b;
+  --border: rgba(34, 211, 238, 0.1);
+  --border-strong: rgba(34, 211, 238, 0.2);
+  --text-primary: #f0fdfb;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-cyan: #22d3ee;
+  --accent-teal: #2dd4bf;
+  --accent-amber: #fbbf24;
+  --accent-rose: #fb7185;
+  --accent-violet: #a78bfa;
+  --glow: 0 0 20px rgba(34, 211, 238, 0.25);
+  --radius: 12px;
+  --radius-lg: 20px;
+}
+
+.light {
+  --bg-primary: #f0fdfb;
+  --bg-secondary: #ccfbf4;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fffe;
+  --border: rgba(13, 148, 136, 0.15);
+  --border-strong: rgba(13, 148, 136, 0.3);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.2);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.4);
+}
+
+/* ── Typography ────────────────────────────────────────── */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Clash Display', sans-serif;
+  line-height: 1.2;
+}
+
+/* ── Component classes ─────────────────────────────────── */
+@layer components {
+
+  /* Glass card */
+  .card {
+    @apply rounded-2xl border;
+    background: var(--bg-card);
+    border-color: var(--border);
+    box-shadow: var(--card);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .card:hover {
+    border-color: var(--border-strong);
+  }
+
+  .card-glass {
+    @apply rounded-2xl border backdrop-blur-md;
+    background: rgba(13, 36, 33, 0.6);
+    border-color: var(--border);
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-200 select-none cursor-pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn-primary {
+    @apply btn px-6 py-3 text-dark-950;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-teal));
+    box-shadow: 0 4px 16px rgba(34, 211, 238, 0.3);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 4px 24px rgba(34, 211, 238, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    @apply btn px-6 py-3;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent-cyan);
+  }
+
+  .btn-ghost {
+    @apply btn px-4 py-2 text-sm;
+    color: var(--text-secondary);
+  }
+
+  .btn-ghost:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+
+  .btn-danger {
+    @apply btn px-6 py-3;
+    background: rgba(251, 113, 133, 0.15);
+    border: 1px solid rgba(251, 113, 133, 0.3);
+    color: #fb7185;
+  }
+
+  .btn-danger:hover {
+    background: rgba(251, 113, 133, 0.25);
+  }
+
+  /* SOS button — always visible */
+  .btn-sos {
+    @apply btn px-5 py-2.5 font-semibold text-white;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-200;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+  }
+
+  .input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .input:focus {
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-cyan {
+    background: rgba(34, 211, 238, 0.15);
+    color: #22d3ee;
+  }
+
+  .badge-teal {
+    background: rgba(45, 212, 191, 0.15);
+    color: #2dd4bf;
+  }
+
+  .badge-amber {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+  }
+
+  .badge-rose {
+    background: rgba(251, 113, 133, 0.15);
+    color: #fb7185;
+  }
+
+  .badge-violet {
+    background: rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+  }
+
+  /* Online dot */
+  .online-dot {
+    @apply w-2.5 h-2.5 rounded-full;
+    background: #22d3ee;
+    box-shadow: 0 0 6px rgba(34, 211, 238, 0.6);
+    animation: blinkDot 1s ease-in-out infinite;
+  }
+
+  /* Disability type color coding */
+  .type-deaf {
+    color: #22d3ee;
+  }
+
+  .type-paralyzed {
+    color: #a78bfa;
+  }
+
+  .type-speech {
+    color: #fbbf24;
+  }
+
+  .type-blind {
+    color: #fb7185;
+  }
+
+  .type-normal {
+    color: #2dd4bf;
+  }
+
+  /* Page container */
+  .page {
+    @apply min-h-screen p-6 max-w-7xl mx-auto;
+  }
+
+  /* Divider */
+  .divider {
+    @apply my-6 border-0 h-px;
+    background: var(--border);
+  }
+}
+
+/* ── Noise texture overlay ─────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ── Focus visible ─────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

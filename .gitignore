@@ -1,0 +1,10 @@
+node_modules
+.env
+.env.local
+dist
+build
+coverage
+.DS_Store
+*.log
+offline_db.json
+offline_db.json.tmp
