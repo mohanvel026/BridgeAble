@@ -1173,9 +1173,14 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
           <button
             onClick={() => socket?.emit('call:upgrade-request', { roomCode })}
             title="Request to switch to video call"
-            className="w-14 h-14 rounded-2xl border-2 border-teal-500/40 bg-teal-500/10 text-teal-400 flex items-center justify-center text-2xl transition-all hover:bg-teal-500/20 active:scale-95 shadow-[0_0_15px_rgba(20,184,166,0.15)] focus:outline-none"
+            className="group relative h-14 px-6 rounded-2xl border-0 overflow-hidden flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(20,184,166,0.3)] focus:outline-none"
           >
-            📹
+            <div className="absolute inset-0 bg-gradient-to-r from-teal-600 via-emerald-500 to-teal-400 opacity-20 group-hover:opacity-40 transition-opacity" />
+            <div className="absolute inset-0 bg-teal-500/10 backdrop-blur-sm" />
+            <div className="absolute inset-0 rounded-2xl border-2 border-teal-400/30 group-hover:border-teal-300/60 transition-colors" />
+            
+            <span className="relative z-10 text-2xl group-hover:animate-bounce">📹</span>
+            <span className="relative z-10 text-teal-100 font-bold tracking-widest uppercase text-xs">Request Video</span>
           </button>
         )}
 

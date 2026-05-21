@@ -58,20 +58,27 @@ export default function InputModeSwitcher({ compact = false, roomCode = null }) 
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-48 p-1.5 z-[9999] animate-slide-down rounded-xl shadow-2xl"
-             style={{ background: 'rgba(4, 13, 12, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid var(--border)' }}>
+        <div className="absolute right-0 sm:left-0 top-full mt-3 w-56 p-2 z-[99999] animate-slide-down rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.8)] backdrop-blur-2xl bg-zinc-950/90 overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/5 before:to-transparent before:pointer-events-none">
           {MODES.map(mode => (
             <button key={mode.id} onClick={() => handleSwitch(mode)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all
+              className={`relative w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-300 group
                            ${mode.id === current.id
-                  ? colorClass[mode.color]
-                  : 'text-text-secondary hover:text-text-primary hover:bg-dark-800'}`}>
-              <span className="text-base">{mode.icon}</span>
-              <div className="text-left">
-                <div className="font-medium text-xs">{mode.label}</div>
-                <div className="text-xs opacity-60">{mode.desc}</div>
+                  ? `${colorClass[mode.color]} shadow-inner font-semibold`
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5 hover:shadow-lg'}`}>
+              
+              {/* Animated selection glow for active item */}
+              {mode.id === current.id && (
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/10 to-transparent opacity-50 pointer-events-none" />
+              )}
+
+              <span className="text-xl relative z-10 group-hover:scale-110 transition-transform">{mode.icon}</span>
+              <div className="text-left relative z-10">
+                <div className="text-[13px]">{mode.label}</div>
+                <div className="text-[10px] opacity-60 font-medium tracking-wide uppercase">{mode.desc}</div>
               </div>
-              {mode.id === current.id && <span className="ml-auto text-xs">✓</span>}
+              {mode.id === current.id && (
+                <span className="ml-auto text-sm relative z-10 drop-shadow-md">✓</span>
+              )}
             </button>
           ))}
         </div>

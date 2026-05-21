@@ -355,36 +355,54 @@ body[data-nav-mode] *:focus {
   gets a highly visible, color-coded ring even if the browser
   doesn't consider it 'focus-visible'.
 */
+
+@keyframes focusPulseBlink {
+  0% { box-shadow: 0 0 0 2px rgba(139, 92, 246, 1), 0 0 15px rgba(139, 92, 246, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.8), 0 0 25px rgba(139, 92, 246, 0.6); }
+  100% { box-shadow: 0 0 0 2px rgba(139, 92, 246, 1), 0 0 15px rgba(139, 92, 246, 0.4); }
+}
+@keyframes focusPulseVoice {
+  0% { box-shadow: 0 0 0 2px rgba(45, 212, 191, 1), 0 0 15px rgba(45, 212, 191, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.8), 0 0 25px rgba(45, 212, 191, 0.6); }
+  100% { box-shadow: 0 0 0 2px rgba(45, 212, 191, 1), 0 0 15px rgba(45, 212, 191, 0.4); }
+}
+@keyframes focusPulseGesture {
+  0% { box-shadow: 0 0 0 2px rgba(34, 211, 238, 1), 0 0 15px rgba(34, 211, 238, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.8), 0 0 25px rgba(34, 211, 238, 0.6); }
+  100% { box-shadow: 0 0 0 2px rgba(34, 211, 238, 1), 0 0 15px rgba(34, 211, 238, 0.4); }
+}
+@keyframes focusPulseSymbol {
+  0% { box-shadow: 0 0 0 2px rgba(251, 191, 36, 1), 0 0 15px rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.8), 0 0 25px rgba(251, 191, 36, 0.6); }
+  100% { box-shadow: 0 0 0 2px rgba(251, 191, 36, 1), 0 0 15px rgba(251, 191, 36, 0.4); }
+}
+
 body[data-nav-mode="blink"] *:focus {
-  outline: 3px solid var(--accent-violet) !important;
-  outline-offset: 4px !important;
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.4) !important;
+  outline: none !important;
   border-radius: inherit;
-  transition: all 0.2s ease-out;
+  animation: focusPulseBlink 2s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  z-index: 50;
 }
 
 body[data-nav-mode="voice"] *:focus {
-  outline: 3px solid var(--accent-teal) !important;
-  outline-offset: 4px !important;
-  box-shadow: 0 0 15px rgba(45, 212, 191, 0.4) !important;
+  outline: none !important;
   border-radius: inherit;
-  transition: all 0.2s ease-out;
+  animation: focusPulseVoice 2s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  z-index: 50;
 }
 
 body[data-nav-mode="gesture"] *:focus {
-  outline: 3px solid var(--accent-cyan) !important;
-  outline-offset: 4px !important;
-  box-shadow: 0 0 15px rgba(34, 211, 238, 0.4) !important;
+  outline: none !important;
   border-radius: inherit;
-  transition: all 0.2s ease-out;
+  animation: focusPulseGesture 2s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  z-index: 50;
 }
 
 body[data-nav-mode="symbol"] *:focus {
-  outline: 3px solid var(--accent-amber) !important;
-  outline-offset: 4px !important;
-  box-shadow: 0 0 15px rgba(251, 191, 36, 0.4) !important;
+  outline: none !important;
   border-radius: inherit;
-  transition: all 0.2s ease-out;
+  animation: focusPulseSymbol 2s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+  z-index: 50;
 }
 
 /* ── Reduced motion ────────────────────────────────────── */
