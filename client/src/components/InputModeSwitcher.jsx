@@ -58,7 +58,8 @@ export default function InputModeSwitcher({ compact = false, roomCode = null }) 
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-48 card p-1.5 z-50 animate-slide-down">
+        <div className="absolute left-0 top-full mt-2 w-48 p-1.5 z-[9999] animate-slide-down rounded-xl shadow-2xl"
+             style={{ background: 'rgba(4, 13, 12, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid var(--border)' }}>
           {MODES.map(mode => (
             <button key={mode.id} onClick={() => handleSwitch(mode)}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all

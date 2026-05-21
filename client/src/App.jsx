@@ -45,7 +45,14 @@ export default function App() {
     document.documentElement.className = theme;
     document.documentElement.style.fontSize =
       fontSize === 'small' ? '14px' : fontSize === 'large' ? '18px' : '16px';
-  }, [user?.preferences]);
+    
+    // Set global navigation mode for color-coded focus rings
+    if (user?.inputMode) {
+      document.body.dataset.navMode = user.inputMode;
+    } else {
+      delete document.body.dataset.navMode;
+    }
+  }, [user?.preferences, user?.inputMode]);
 
   useEffect(() => { if (user) refreshMe(); }, []);
 
