@@ -16,9 +16,9 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
-const MIN_INTENTIONAL_BLINK_MS = 180;
-const DOUBLE_BLINK_WINDOW_MS = 900;
-const ACTION_COOLDOWN_MS = 1800;
+const MIN_INTENTIONAL_BLINK_MS = 80;    // < 80ms = natural/involuntary blink (ignored)
+const DOUBLE_BLINK_WINDOW_MS   = 700;   // two blinks within 700ms = click action
+const ACTION_COOLDOWN_MS       = 1500;  // 1.5s lockout after any action (prevents cascade)
 
 export default function BlinkNavigator() {
   const { user } = useAuthStore();
@@ -147,7 +147,7 @@ export default function BlinkNavigator() {
         const faceMesh = new FaceMesh({
           locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
         });
-        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.65, minTrackingConfidence: 0.65 });
         faceMesh.onResults((results) => {
           if (!results.multiFaceLandmarks?.length) return;
           const lm = results.multiFaceLandmarks[0];
@@ -170,7 +170,7 @@ export default function BlinkNavigator() {
             if (videoRef.current && faceMeshRef.current)
               await faceMeshRef.current.send({ image: videoRef.current });
           },
-          width: 320, height: 240,
+          width: 640, height: 480, // VGA for accurate EAR landmark positions
         });
 
         await camera.start();
