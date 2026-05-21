@@ -67,7 +67,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
         const Camera = cameraModule.Camera || cameraModule.default?.Camera || window.Camera;
 
         const fm = new FaceMesh({
-          locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+          locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
         });
         fm.setOptions({
           maxNumFaces: 1,

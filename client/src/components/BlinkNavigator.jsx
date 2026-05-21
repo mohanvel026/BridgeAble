@@ -145,7 +145,7 @@ export default function BlinkNavigator() {
         }
 
         const faceMesh = new FaceMesh({
-          locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+          locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
         });
         faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.65, minTrackingConfidence: 0.65 });
         faceMesh.onResults((results) => {

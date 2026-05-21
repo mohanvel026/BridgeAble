@@ -124,7 +124,7 @@ export default function useBlinkDetector(videoRef, {
       if (!isMountedRef.current || !videoRef.current) return;
 
       const faceMesh = new FaceMesh({
-        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${f}`,
       });
 
       faceMesh.setOptions({
