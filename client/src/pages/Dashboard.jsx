@@ -147,9 +147,9 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 lg:py-12">
         {/* Greeting Section */}
-        <div className="mb-10 animate-fade-in relative">
+        <div className="mb-10 animate-fade-in relative z-50">
           <div className="absolute top-0 right-10 w-64 h-64 bg-teal-500/10 blur-[80px] rounded-full pointer-events-none" />
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-50">
             <div className="flex items-center gap-4">
               <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-inner border
                 ${config.color === 'sky' ? 'bg-sky-500/20 border-sky-500/40 text-sky-400' :
