@@ -49,13 +49,14 @@ export default function Onboarding() {
   const [cameraError, setCameraError] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  const earThresholdRef = useRef(0.25);
+  const earThresholdRef = useRef(0.20); // Start low — adaptive calibration raises it
   const blinkCountRef = useRef(0);
   const earValuesRef = useRef([]);
   const stepRef = useRef(1);
   const isEyeClosedRef = useRef(false);
   const blinkStartRef = useRef(null);
-  const dashMsRef = useRef(400);
+  const dashMsRef       = useRef(400);
+  const earSmoothBuf     = useRef([]);  // rolling buffer for EAR smoothing
 
   // Sync refs with state
   useEffect(() => { stepRef.current = step; }, [step]);
@@ -123,14 +124,19 @@ export default function Onboarding() {
     const rightEAR = computeEAR(landmarks, RIGHT_EYE);
     const ear = (leftEAR + rightEAR) / 2;
 
+    // 4-frame rolling average to eliminate single-frame sensor noise
+    earSmoothBuf.current.push(ear);
+    if (earSmoothBuf.current.length > 4) earSmoothBuf.current.shift();
+    const smoothedEAR = earSmoothBuf.current.reduce((a, b) => a + b, 0) / earSmoothBuf.current.length;
+
     const threshold = earThresholdRef.current;
-    const eyeClosed = ear < threshold;
+    const eyeClosed = smoothedEAR < threshold;
     const wasOpen = !isEyeClosedRef.current;
 
     if (stepRef.current === 1 && !eyeClosed) {
-      // Collecting baseline EAR values when eye is open
-      earValuesRef.current = [...earValuesRef.current.slice(-30), ear];
-      setEarValues(v => [...v.slice(-30), ear]);
+      // Collect open-eye EAR baseline samples
+      earValuesRef.current = [...earValuesRef.current.slice(-60), smoothedEAR];
+      setEarValues(v => [...v.slice(-60), smoothedEAR]);
     }
 
     if (eyeClosed && wasOpen) {
@@ -139,7 +145,7 @@ export default function Onboarding() {
       isEyeClosedRef.current = true;
       blinkStartRef.current = Date.now();
       setBlinkStart(Date.now());
-    } else if (!eyeClosed && !wasOpen) {
+    } else if (!eyeClosed && isEyeClosedRef.current) {  // eye just OPENED
       // Eye just opened
       setIsEyeClosed(false);
       isEyeClosedRef.current = false;
