@@ -91,7 +91,7 @@ function classifySign(states, wrist, indexTip, thumbTip) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function GesturePanel({ onSend }) {
+export default function GesturePanel({ onSend, onSendInterim }) {
   const videoRef      = useRef(null);
   const canvasRef     = useRef(null);
   const frameCountRef = useRef({});   // gesture → stable frame count
@@ -105,6 +105,13 @@ export default function GesturePanel({ onSend }) {
   const [status, setStatus]               = useState('loading'); // loading | ready | error
   const [handVisible, setHandVisible]     = useState(false);
   const [cooldown, setCooldown]           = useState(false);    // brief lock after auto-send
+
+  // Stream interim updates as signs are added to the sentence
+  useEffect(() => {
+    if (onSendInterim) {
+      onSendInterim(sentence);
+    }
+  }, [sentence, onSendInterim]);
 
   // ── Draw skeleton + classify on each frame ────────────────────────────────
   const onHandResults = useCallback((results) => {
@@ -253,11 +260,33 @@ export default function GesturePanel({ onSend }) {
   const sendMessage = useCallback(() => {
     if (!sentence.trim()) return;
     onSend(sentence.trim(), 0.85);
+    if (onSendInterim) {
+      onSendInterim('');
+    }
     setSentence('');
     setDetected(null);
-  }, [sentence, onSend]);
+  }, [sentence, onSend, onSendInterim]);
 
-  const clearSentence = () => { setSentence(''); setDetected(null); };
+  const clearSentence = () => {
+    setSentence('');
+    setDetected(null);
+    if (onSendInterim) {
+      onSendInterim('');
+    }
+  };
+
+  // ── Hands-Free Gestural Auto-Commit Timeout ──
+  useEffect(() => {
+    if (!sentence.trim()) return;
+    
+    // Automatically trigger send if user rests their hands (stops gesturing) for 1.8s
+    const commitTimer = setTimeout(() => {
+      console.log('[Hands-Free] Auto-committing ASL sentence due to inactive gesturing rest...');
+      sendMessage();
+    }, 1800);
+
+    return () => clearTimeout(commitTimer);
+  }, [sentence, sendMessage]);
 
   return (
     <div className="space-y-4 relative" role="region" aria-label="Sign language gesture detection">
@@ -342,19 +371,26 @@ export default function GesturePanel({ onSend }) {
       </div>
 
       {/* Sentence builder */}
-      <div className="min-h-[4rem] px-4 py-3 rounded-2xl bg-zinc-950/60 backdrop-blur-sm border border-white/5 relative shadow-inner">
+      <div className="min-h-[4.5rem] px-4 py-3.5 rounded-2xl bg-zinc-950/60 backdrop-blur-sm border border-white/5 relative shadow-inner flex flex-col justify-center">
         {!sentence ? (
           <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest absolute top-1/2 left-4 -translate-y-1/2">
             Signs will appear here automatically...
           </p>
         ) : (
-          <p className="text-sm font-black text-white leading-snug break-words pr-8 drop-shadow-md">
-            {sentence}
-          </p>
+          <div className="flex flex-col gap-1.5 pr-8 justify-center">
+            <p className="text-sm font-black text-white leading-snug break-words drop-shadow-md">
+              {sentence}
+              <span className="w-1.5 h-4 bg-cyan-400 inline-block ml-1 animate-pulse align-middle" />
+            </p>
+            <div className="flex items-center gap-1.5 mt-0.5 animate-pulse">
+              <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              <span className="text-[8px] font-black uppercase tracking-widest text-cyan-400/80">Auto-Sending in 1.8s of gesturing rest...</span>
+            </div>
+          </div>
         )}
         {sentence && (
           <button onClick={clearSentence}
-            className="absolute top-3 right-3 w-6 h-6 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-all text-xs shadow-sm active:scale-95">
+            className="absolute top-3 right-3 w-6 h-6 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-all text-xs shadow-sm active:scale-95 z-20">
             ✕
           </button>
         )}

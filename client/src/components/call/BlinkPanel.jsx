@@ -8,8 +8,8 @@ import useMorseDecoder from '../../hooks/useMorseDecoder';
 import { Play, Delete, RotateCcw, Send, Check, HelpCircle, X } from 'lucide-react';
 
 // ── EAR (Eye Aspect Ratio) computation ───────────────────────────────────────
-function dist(a, b, width = 320, height = 240) { 
-  return Math.sqrt(Math.pow((a.x - b.x)*width, 2) + Math.pow((a.y - b.y)*height, 2)); 
+function dist(a, b, width = 320, height = 240) {
+  return Math.sqrt(Math.pow((a.x - b.x) * width, 2) + Math.pow((a.y - b.y) * height, 2));
 }
 function computeEAR(landmarks, indices) {
   const pts = indices.map(i => landmarks[i]);
@@ -20,17 +20,18 @@ function computeEAR(landmarks, indices) {
   return (A + B) / (2.0 * C);
 }
 
-const LEFT_EYE  = [362, 385, 387, 263, 373, 380];
+const LEFT_EYE = [362, 385, 387, 263, 373, 380];
 const RIGHT_EYE = [33, 160, 158, 133, 153, 144];
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function BlinkPanel({ onSend, blinkProfile }) {
-  const videoRef  = useRef(null);
+export default function BlinkPanel({ onSend, onSendInterim, blinkProfile }) {
+  const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const fmRef     = useRef(null);
+  const fmRef = useRef(null);
   const cameraRef = useRef(null);
   const activeRef = useRef(true);
   const audioCtxRef = useRef(null);
+  const executeSendRef = useRef(null);
 
   const [sentence, setSentence] = useState('');
   const [status, setStatus] = useState('loading'); // loading | ready | error
@@ -42,7 +43,15 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
 
   // Settings
   const earThreshold = blinkProfile?.earThreshold || 0.22;
-  const dashMs       = blinkProfile?.dashMs || 400;
+  const dashMs = blinkProfile?.dashMs || 400;
+
+  // Stream interim updates as user constructs Morse sequence
+  useEffect(() => {
+    if (onSendInterim) {
+      const interimText = [sentence, currentWord, morseBuffer ? `[${morseBuffer}]` : ''].filter(Boolean).join(' ');
+      onSendInterim(interimText);
+    }
+  }, [sentence, currentWord, morseBuffer, onSendInterim]);
 
   const handleWord = useCallback((word) => {
     setSentence(prev => prev + (prev ? ' ' : '') + word);
@@ -75,7 +84,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
   }, []);
 
   const blinkStartRef = useRef(null);
-  const isClosedRef   = useRef(false);
+  const isClosedRef = useRef(false);
   const predictionBeepTimerRef = useRef(null);
   const sendBeepTimerRef = useRef(null);
 
@@ -100,10 +109,10 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
       }
       const osc = audioCtxRef.current.createOscillator();
       const gain = audioCtxRef.current.createGain();
-      
+
       osc.type = type;
       osc.frequency.setValueAtTime(freq, audioCtxRef.current.currentTime);
-      
+
       gain.gain.setValueAtTime(0.015, audioCtxRef.current.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, audioCtxRef.current.currentTime + duration);
 
@@ -111,7 +120,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
       gain.connect(audioCtxRef.current.destination);
       osc.start();
       osc.stop(audioCtxRef.current.currentTime + duration);
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const playBeep = useCallback(() => playTone(800, 0.05), [playTone]);
@@ -128,7 +137,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
       // We can't access currentWord directly reliably without adding it to deps (which restarts camera)
       // So we rely on the parent component triggering onSend. 
       // Actually, we'll just emit a custom event or use refs.
-      return prev; 
+      return prev;
     });
   }, []);
 
@@ -141,12 +150,12 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const hasFace = results.multiFaceLandmarks?.length > 0;
-    
+
     // Using a ref to track face visibility to avoid useless re-renders
     if (faceVisible !== hasFace) {
-        setFaceVisible(hasFace);
+      setFaceVisible(hasFace);
     }
-    
+
     if (!hasFace) return;
 
     const lm = results.multiFaceLandmarks[0];
@@ -156,10 +165,10 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
     // Draw eye bounding boxes directly to canvas context
     ctx.save();
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = eyeClosed ? 'rgba(244, 63, 94, 0.9)' : 'rgba(34, 211, 238, 0.7)'; 
+    ctx.strokeStyle = eyeClosed ? 'rgba(244, 63, 94, 0.9)' : 'rgba(34, 211, 238, 0.7)';
     ctx.shadowBlur = 10;
     ctx.shadowColor = eyeClosed ? 'rgba(244, 63, 94, 0.8)' : 'rgba(34, 211, 238, 0.8)';
-    
+
     [LEFT_EYE, RIGHT_EYE].forEach(eyeIndices => {
       ctx.beginPath();
       eyeIndices.forEach((idx, i) => {
@@ -182,7 +191,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
       predictionBeepTimerRef.current = setTimeout(() => {
         playPredictionBeep();
       }, 1000);
-      
+
       sendBeepTimerRef.current = setTimeout(() => {
         playSendBeep();
       }, 2000);
@@ -190,15 +199,15 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
     } else if (!eyeClosed && isClosedRef.current) {
       isClosedRef.current = false;
       setUiState({ isEyeClosed: false });
-      
+
       clearTimeout(predictionBeepTimerRef.current);
       clearTimeout(sendBeepTimerRef.current);
-      
+
       const duration = Date.now() - blinkStartRef.current;
-      
+
       if (duration >= 2000) {
         // Send
-        document.getElementById('hidden-send-trigger')?.click();
+        executeSendRef.current?.();
       } else if (duration >= 1000) {
         // Accept prediction
         if (predictionsRef.current.length > 0) {
@@ -271,8 +280,8 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
     return () => {
       activeRef.current = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      try { cameraRef.current?.stop(); } catch (_) {}
-      try { fmRef.current?.close(); } catch (_) {}
+      try { cameraRef.current?.stop(); } catch (_) { }
+      try { fmRef.current?.close(); } catch (_) { }
       if (videoRef.current?.srcObject) {
         videoRef.current.srcObject.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
@@ -285,24 +294,36 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
     const finalMsg = [sentence, currentWord].filter(Boolean).join(' ');
     if (finalMsg.trim()) {
       onSend(finalMsg.trim());
+      if (onSendInterim) {
+        onSendInterim('');
+      }
       setSentence('');
       clear();
     }
   };
+  executeSendRef.current = executeSend;
+
+  // Stream interim updates in real time to the peer so they can follow word-by-word morse formulation!
+  useEffect(() => {
+    if (onSendInterim) {
+      const interimMsg = [sentence, currentWord].filter(Boolean).join(' ');
+      onSendInterim(interimMsg);
+    }
+  }, [sentence, currentWord, onSendInterim]);
 
   return (
     <div className="flex flex-col h-full bg-[#040404]/90 backdrop-blur-3xl p-4 gap-4 animate-fade-in relative z-10 border border-white/5 rounded-t-3xl md:rounded-3xl shadow-2xl">
       {/* ── Top section: Camera + Morse status ── */}
       <div className="flex flex-col md:flex-row gap-4 h-[220px]">
-        
+
         {/* Camera / Face detection status */}
         <div className="relative w-full md:w-[280px] h-full rounded-2xl overflow-hidden bg-black shadow-inner border border-white/5 flex-shrink-0 group">
-          <video 
-            ref={videoRef} 
+          <video
+            ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none"
             style={{ transform: 'scaleX(-1)' }}
-            playsInline 
-            muted 
+            playsInline
+            muted
           />
           <canvas
             ref={canvasRef}
@@ -331,14 +352,14 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
 
           {status === 'loading' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-20">
-               <div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-400 rounded-full animate-spin mb-2" />
-               <p className="text-xs text-teal-400 font-medium">Booting AI Engine...</p>
+              <div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-400 rounded-full animate-spin mb-2" />
+              <p className="text-xs text-teal-400 font-medium">Booting AI Engine...</p>
             </div>
           )}
 
           {status === 'error' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20">
-               <p className="text-xs text-rose-400 font-medium text-center px-4">Camera/AI failed to load.<br/>Check permissions.</p>
+              <p className="text-xs text-rose-400 font-medium text-center px-4">Camera/AI failed to load.<br />Check permissions.</p>
             </div>
           )}
 
@@ -346,24 +367,22 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
           {status === 'ready' && (
             <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none z-10">
               <div className="flex justify-between items-start">
-                <div className={`px-2 py-1 rounded-md backdrop-blur-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors ${
-                  uiState.isEyeClosed 
-                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' 
+                <div className={`px-2 py-1 rounded-md backdrop-blur-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors ${uiState.isEyeClosed
+                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                     : 'bg-teal-500/20 text-teal-400 border border-teal-500/30'
-                }`}>
+                  }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${uiState.isEyeClosed ? 'bg-rose-400 animate-pulse' : 'bg-teal-400'}`} />
                   {uiState.isEyeClosed ? 'Closed' : 'Open'}
                 </div>
-                
-                <div className={`px-2 py-1 rounded-md backdrop-blur-md text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  faceVisible 
-                    ? 'bg-white/10 text-white/70 border border-white/5' 
+
+                <div className={`px-2 py-1 rounded-md backdrop-blur-md text-[10px] font-bold uppercase tracking-wider transition-colors ${faceVisible
+                    ? 'bg-white/10 text-white/70 border border-white/5'
                     : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse'
-                }`}>
+                  }`}>
                   {faceVisible ? 'Tracking' : 'No Face'}
                 </div>
               </div>
-              
+
               <div className="self-end px-2 py-1 bg-black/50 backdrop-blur-md rounded border border-white/5 text-[9px] text-white/50 font-mono">
                 Dash &ge; {dashMs}ms
               </div>
@@ -375,7 +394,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
         <div className="flex-1 flex flex-col gap-3 h-full">
           {/* Header Actions */}
           <div className="flex justify-end mb-[-10px] relative z-20">
-            <button 
+            <button
               onClick={() => setShowCheatSheet(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 hover:bg-teal-500/20 transition-all text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(20,184,166,0.15)]"
             >
@@ -418,16 +437,16 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
                 </button>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3 flex-1">
               <span className="text-2xl font-black tracking-wider text-white">
                 {currentWord || <span className="text-white/10">...</span>}
               </span>
-              
+
               {/* Predictions */}
               <div className="flex gap-2 ml-auto">
                 {predictions.map((word, i) => (
-                  <button 
+                  <button
                     key={word + i}
                     onClick={() => acceptPrediction(word)}
                     className="px-3 py-1.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 text-sm font-bold hover:bg-teal-500/20 transition-colors"
@@ -452,7 +471,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
           </p>
         </div>
 
-        <button 
+        <button
           id="hidden-send-trigger"
           onClick={executeSend}
           disabled={!sentence && !currentWord}
@@ -462,7 +481,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
           Send
         </button>
       </div>
-      
+
       <div className="flex justify-center gap-6 mt-2 text-[10px] font-bold uppercase tracking-widest text-white/30">
         <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-white/30" /> Dot (&lt; {dashMs}ms) = Letter</span>
         <span className="flex items-center gap-2"><div className="w-3 h-1.5 rounded-full bg-white/30" /> Dash = Action</span>
@@ -492,7 +511,7 @@ export default function BlinkPanel({ onSend, blinkProfile }) {
                 <X size={18} className="group-hover:scale-110 transition-transform group-hover:text-rose-400" />
               </button>
             </div>
-            
+
             <div className="p-5 md:p-8 overflow-y-auto custom-scrollbar flex flex-col gap-8 flex-1">
               {/* Timing Guide */}
               <div className="space-y-4">

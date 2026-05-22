@@ -32,6 +32,41 @@ const RTC_CONFIG = {
   ],
 };
 
+// ── Web Audio Call Join Acoustic Chime ──
+const playConnectionChime = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    const playTone = (freq, time, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, time);
+      
+      gain.gain.setValueAtTime(0, time);
+      gain.gain.linearRampToValueAtTime(0.15, time + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start(time);
+      osc.stop(time + duration);
+    };
+
+    const now = ctx.currentTime;
+    // Ascending major chord (C5 -> E5 -> G5)
+    playTone(523.25, now, 0.4);       // C5
+    playTone(659.25, now + 0.12, 0.4); // E5
+    playTone(783.99, now + 0.24, 0.5); // G5
+  } catch (err) {
+    console.debug('Failed to play Web Audio chime:', err);
+  }
+};
+
 // ============================================================================
 // HOOK: High-Performance WebRTC Media Transceiver
 // Handles connection mapping, ICE states, and secure hardware stream tracking.
@@ -42,6 +77,7 @@ function useWebRTC(roomCode, socket, RTC_CONFIG, onRemoteParticipantUpdate) {
   const isNegotiatingRef = useRef(false);
   const [callState, setCallState] = useState('connecting'); // connecting | active | disconnected
   const [networkQuality, setNetworkQuality] = useState('good'); // good | poor | disconnected
+  const [remoteStream, setRemoteStream] = useState(null);
 
   const closeConnections = useCallback(() => {
     if (peerConnRef.current) {
@@ -58,9 +94,10 @@ function useWebRTC(roomCode, socket, RTC_CONFIG, onRemoteParticipantUpdate) {
     isNegotiatingRef.current = false;
     setCallState('disconnected');
     setNetworkQuality('disconnected');
+    setRemoteStream(null);
   }, []);
 
-  const createPeerConnection = useCallback((targetUserId, remoteVideoElement) => {
+  const createPeerConnection = useCallback((targetUserId) => {
     if (peerConnRef.current) return peerConnRef.current;
 
     const pc = new RTCPeerConnection(RTC_CONFIG);
@@ -74,8 +111,9 @@ function useWebRTC(roomCode, socket, RTC_CONFIG, onRemoteParticipantUpdate) {
     }
 
     pc.ontrack = (event) => {
-      if (remoteVideoElement && event.streams[0]) {
-        remoteVideoElement.srcObject = event.streams[0];
+      if (event.streams[0]) {
+        console.log('[WebRTC] Remote stream received and bound to state:', event.streams[0].id);
+        setRemoteStream(event.streams[0]);
       }
     };
 
@@ -137,12 +175,12 @@ function useWebRTC(roomCode, socket, RTC_CONFIG, onRemoteParticipantUpdate) {
       console.log(`[WebRTC] Connection state: ${pc.connectionState}`);
       if (pc.connectionState === 'connected') {
         setCallState('active');
+        playConnectionChime();
       } else if (pc.connectionState === 'disconnected') {
         setCallState('connecting');
       } else if (pc.connectionState === 'failed') {
         setCallState('connecting');
         // Autonomous ICE Restart (Industry Grade Resilience)
-        // If network drops and fails, aggressively restart ICE pathing
         console.warn('[WebRTC] Connection failed. Initiating ICE Restart...');
         pc.restartIce();
       } else if (pc.connectionState === 'closed') {
@@ -160,7 +198,8 @@ function useWebRTC(roomCode, socket, RTC_CONFIG, onRemoteParticipantUpdate) {
     setCallState,
     networkQuality,
     createPeerConnection,
-    closeConnections
+    closeConnections,
+    remoteStream
   };
 }
 
@@ -222,6 +261,16 @@ export default function CallRoom() {
   // Real-world specific track states
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCamOff, setRemoteCamOff] = useState(false);
+  const [remoteInterim, setRemoteInterim] = useState(null); // Tracks live typing/interim transcripts
+
+  // Auto-clear interim subtitle bubble after 3.5s of silence
+  useEffect(() => {
+    if (!remoteInterim) return;
+    const timer = setTimeout(() => {
+      setRemoteInterim(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [remoteInterim]);
 
   const myInputMode = useMemo(() => inputMode || user?.inputMode || 'voice', [inputMode, user]);
 
@@ -239,8 +288,39 @@ export default function CallRoom() {
     networkQuality,
     createPeerConnection,
     closeConnections,
-    peerConnRef
+    peerConnRef,
+    remoteStream
   } = useWebRTC(roomCode, socket, RTC_CONFIG, setRemoteParticipant);
+
+  // ── High-Resilience Video Stream Binder ──
+  useEffect(() => {
+    let active = true;
+    const bindStreams = () => {
+      if (!active) return;
+      if (remoteStream) {
+        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
+          console.log('[WebRTC] Binding remote video stream...');
+          remoteVideoRef.current.srcObject = remoteStream;
+        }
+        if (localVideoRef.current && localStreamRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
+          console.log('[WebRTC] Binding local video stream (PiP)...');
+          localVideoRef.current.srcObject = localStreamRef.current;
+        }
+      } else {
+        if (localVideoRef.current && localStreamRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
+          console.log('[WebRTC] Binding local video stream (Main Preview)...');
+          localVideoRef.current.srcObject = localStreamRef.current;
+        }
+      }
+    };
+
+    bindStreams();
+    const frameId = requestAnimationFrame(bindStreams);
+    return () => {
+      active = false;
+      cancelAnimationFrame(frameId);
+    };
+  }, [remoteStream, localStreamRef.current, callPhase]);
 
   // ── Enterprise Text To Speech Queue Processor ──
   const processTtsExecutionQueue = useCallback(() => {
@@ -250,18 +330,27 @@ export default function CallRoom() {
     const utterance = new SpeechSynthesisUtterance(outputText);
     utterance.rate = 1.0;
 
+    // Pick optimal English voice if available
+    try {
+      const voices = window.speechSynthesis.getVoices();
+      const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      if (voice) utterance.voice = voice;
+    } catch (e) {}
+
     utterance.onstart = () => { window.IS_TTS_SPEAKING = true; };
     
     utterance.onend = () => {
       window.IS_TTS_SPEAKING = false;
-      processTtsExecutionQueue();
+      setTimeout(processTtsExecutionQueue, 50); // Safety asynchronous gap prevents call-stack overflows
     };
     
     utterance.onerror = () => {
       window.IS_TTS_SPEAKING = false;
-      processTtsExecutionQueue();
+      setTimeout(processTtsExecutionQueue, 50); // Safety asynchronous gap prevents call-stack overflows
     };
 
+    // Prevent garbage collection bug in Chrome which causes onend to never fire
+    window._currentUtterance = utterance;
     window.speechSynthesis.speak(utterance);
   }, []);
 
@@ -269,6 +358,24 @@ export default function CallRoom() {
     ttsQueueRef.current.push(text);
     processTtsExecutionQueue();
   }, [processTtsExecutionQueue]);
+
+  // Warm up SpeechSynthesis voices asynchronously to prevent system robotic fallback
+  useEffect(() => {
+    const handleVoicesChanged = () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.getVoices();
+      }
+    };
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+      window.speechSynthesis.getVoices();
+    }
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+      }
+    };
+  }, []);
 
   // ── Call Transcript Exporter ──
   const handleExportTranscript = useCallback(() => {
@@ -294,18 +401,70 @@ export default function CallRoom() {
 
   // ── Network Signaling Callbacks ──
   const handleIncomingSubtitle = useCallback((data) => {
+    setRemoteInterim(null); // Clear interim text when final subtitle arrives!
     const defaultColor = PARTICIPANT_COLORS[0];
     const entry = { ...data, color: defaultColor, timestamp: Date.now(), id: `${data.senderId}-${Date.now()}` };
     addSubtitle(entry);
     setHistoricalTranscript(prev => [...prev, entry]);
 
     const isClientBlind = user?.disabilityType === 'blind';
-    const isRemoteImpaired = remoteParticipant?.disabilityType === 'deaf' || remoteParticipant?.disabilityType === 'paralyzed';
+    const isRemoteImpaired = remoteParticipant?.disabilityType === 'deaf' || remoteParticipant?.disabilityType === 'paralyzed' || remoteParticipant?.disabilityType === 'cognitive';
+    const isVoiceInput = data.inputMode === 'voice';
 
-    if (isClientBlind || isRemoteImpaired) {
-      pushToTtsQueue(`${data.senderName} states: ${data.text}`);
+    // Speak if the receiver is blind, the sender is non-verbal, or the remote has cognitive/motor impairments
+    if (isClientBlind || isRemoteImpaired || !isVoiceInput) {
+      pushToTtsQueue(`${data.senderName} says: ${data.text}`);
+    }
+
+    // Play soft acoustic confirmation beep if the receiver is paralyzed (e.g. Blind -> Paralyzed)
+    if (user?.disabilityType === 'paralyzed') {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioCtx();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, audioCtx.currentTime); // Soft, clear high chime
+        gain.gain.setValueAtTime(0.012, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+        setTimeout(() => audioCtx.close().catch(() => {}), 300);
+      } catch (e) {
+        console.debug('Acoustic beep suppressed by browser policy.');
+      }
     }
   }, [user, remoteParticipant, addSubtitle, pushToTtsQueue]);
+
+  const handleIncomingInterimSubtitle = useCallback((data) => {
+    setRemoteInterim(data);
+
+    // Play very soft, ultra-short high-fidelity tick for paralyzed users during peer live speech
+    if (user?.disabilityType === 'paralyzed' && data?.text) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioCtx();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1050, audioCtx.currentTime); // High pitch tactile tick
+        gain.gain.setValueAtTime(0.004, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+        setTimeout(() => audioCtx.close().catch(() => {}), 150);
+      } catch (e) {}
+    }
+  }, [user]);
+
+  const sendSubtitleInterim = useCallback((text) => {
+    if (!socket) return;
+    socket.emit('subtitle:interim-send', { roomCode, text: (text || '').trim(), inputMode: myInputMode });
+  }, [socket, roomCode, myInputMode]);
 
   const sendSubtitle = useCallback((text, confidence = 1.0) => {
     if (!socket || !text?.trim()) return;
@@ -526,8 +685,8 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
           });
         } else if (hasPendingJoin && !peerConnRef.current) {
           // Peer joined via room:user-joined but no connection yet — create now with tracks already in stream
-          const { userId: peerId, videoEl } = pendingPeerJoinRef.current;
-          createPeerConnection(peerId, videoEl);
+          const { userId: peerId } = pendingPeerJoinRef.current;
+          createPeerConnection(peerId);
         } else if (peerConnRef.current) {
           // Normal case: peer connection already exists (no pending join), just add tracks
           mediaStream.getTracks().forEach(track => {
@@ -600,11 +759,11 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
 
       if (localStreamRef.current) {
         // Camera already ready — create peer connection immediately with tracks
-        createPeerConnection(data.userId, remoteVideoRef.current);
+        createPeerConnection(data.userId);
       } else {
         // Camera not ready yet — queue the join; createPeerConnection will fire once media arrives
         console.log('[WebRTC] Peer joined before camera ready — queuing createPeerConnection');
-        pendingPeerJoinRef.current = { userId: data.userId, videoEl: remoteVideoRef.current };
+        pendingPeerJoinRef.current = { userId: data.userId };
       }
     };
 
@@ -620,7 +779,7 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
         await new Promise(resolve => mediaReadyResolversRef.current.push(resolve));
       }
 
-      const pc = createPeerConnection(from, remoteVideoRef.current);
+      const pc = createPeerConnection(from);
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc.createAnswer();
@@ -666,6 +825,7 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
     socket.on('webrtc:answer', onWebRtcAnswer);
     socket.on('webrtc:ice', onIceCandidateReceived);
     socket.on('subtitle:receive', handleIncomingSubtitle);
+    socket.on('subtitle:interim-receive', handleIncomingInterimSubtitle);
     socket.on('mode:switched', onModeSwitched);
     const onCallEnded = () => navigate('/dashboard');
     socket.on('call:ended', onCallEnded);
@@ -752,6 +912,7 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
       socket.off('webrtc:answer', onWebRtcAnswer);
       socket.off('webrtc:ice', onIceCandidateReceived);
       socket.off('subtitle:receive', handleIncomingSubtitle);
+      socket.off('subtitle:interim-receive', handleIncomingInterimSubtitle);
       socket.off('mode:switched', onModeSwitched);
       socket.off('call:track-state', onTrackStateChange);
       socket.off('call:ended-graceful', onGracefulEnd);
@@ -762,7 +923,7 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
       socket.off('call:upgrade-request', onUpgradeRequest);
       socket.off('call:upgrade-response', onUpgradeResponse);
     };
-  }, [socket, createPeerConnection, handleIncomingSubtitle, addParticipant, navigate, peerConnRef]);
+  }, [socket, createPeerConnection, handleIncomingSubtitle, handleIncomingInterimSubtitle, addParticipant, navigate, peerConnRef]);
 
   // ── Ringing phase auto-cancel timer (caller side only) ──
   useEffect(() => {
@@ -992,15 +1153,32 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
         {/* Stream Viewports — Sticky on mobile so you always see the other person */}
         <section className="sticky top-0 z-40 flex-none h-[40vh] sm:h-[50vh] lg:h-auto lg:flex-1 flex flex-col lg:flex-row gap-2 lg:gap-4 p-2 lg:p-6 bg-[#020808]/95 backdrop-blur-xl lg:bg-transparent border-b border-white/10 lg:border-none shadow-2xl lg:shadow-none">
           
-          {/* Remote Feed */}
+          {/* Main Feed Container */}
           <div className="flex-1 relative rounded-2xl lg:rounded-3xl border border-white/5 bg-zinc-900/40 backdrop-blur-sm overflow-hidden shadow-2xl flex items-center justify-center group transition-all">
-            <video ref={remoteVideoRef} className={`w-full h-full object-cover transition-opacity duration-500 ${remoteCamOff ? 'opacity-0' : 'opacity-100'}`} autoPlay playsInline />
+            
+            {/* Dynamic Full Screen Stream Router */}
+            {remoteStream ? (
+              <video 
+                ref={remoteVideoRef} 
+                className={`w-full h-full object-cover transition-opacity duration-500 ${remoteCamOff ? 'opacity-0' : 'opacity-100'}`} 
+                autoPlay 
+                playsInline 
+              />
+            ) : (
+              <video 
+                ref={localVideoRef} 
+                className="w-full h-full object-cover scale-x-[-1] transition-opacity duration-500" 
+                autoPlay 
+                playsInline 
+                muted 
+              />
+            )}
             
             {/* Inner shadow/gradient for better text readability */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
 
             {/* System PiP Toggle */}
-            {remoteParticipant && !remoteCamOff && (
+            {remoteStream && remoteParticipant && !remoteCamOff && (
               <button 
                 onClick={async () => {
                   try {
@@ -1024,27 +1202,20 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
               </button>
             )}
             
-            {/* Connecting placeholder — shown while WebRTC is negotiating (no remote stream yet) */}
-            {!remoteParticipant && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-md z-10">
-                <div className="relative mb-4 lg:mb-8">
-                  {[1,2,3].map(i => (
-                    <div key={i} className="absolute inset-0 rounded-full border border-teal-500/20"
-                      style={{ transform: `scale(${1 + i * 0.35})`, animation: `ping ${1.5 + i * 0.5}s ease-out infinite`, animationDelay: `${i * 0.4}s`, opacity: 0.5 }} />
-                  ))}
-                  <div className="w-16 h-16 lg:w-24 lg:h-24 rounded-full bg-gradient-to-br from-teal-500/20 to-teal-900/40 border border-teal-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.2)] backdrop-blur-xl">
-                    <span className="text-2xl lg:text-4xl font-black text-teal-300 drop-shadow-md">
-                      {recipientName?.[0]?.toUpperCase() || '?'}
-                    </span>
+            {/* Elegant overlay when alone in the call (waiting for peer to join) */}
+            {!remoteStream && (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 flex flex-col items-center justify-center p-6 z-10 pointer-events-none">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 rounded-full border border-teal-500/30 animate-ping" style={{ animationDuration: '2.5s' }} />
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-500/20 to-teal-900/40 border border-teal-500/30 flex items-center justify-center shadow-[0_0_40px_rgba(20,184,166,0.35)] backdrop-blur-md">
+                    <span className="text-3xl font-black text-teal-300 animate-pulse">📞</span>
                   </div>
                 </div>
-                <p className="text-white font-black text-lg lg:text-2xl mb-1 lg:mb-2 drop-shadow-md">{recipientName}</p>
-                <p className="text-teal-400/70 text-[8px] lg:text-[10px] font-black uppercase tracking-[0.2em] mb-4 lg:mb-6">Establishing Secure Link</p>
-                <div className="flex items-center gap-1.5 lg:gap-2">
-                  {[0,1,2].map(i => (
-                    <div key={i} className="w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full bg-teal-400 shadow-[0_0_5px_rgba(45,212,191,0.8)]"
-                      style={{ animation: 'bounce 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s` }} />
-                  ))}
+                <h3 className="text-white font-extrabold text-xl lg:text-2xl mb-1 tracking-tight drop-shadow-lg">Calling {recipientName}...</h3>
+                <p className="text-teal-400 text-xs font-black uppercase tracking-[0.2em] mb-4">Establishing Secure Link</p>
+                <div className="flex items-center gap-1.5 bg-zinc-950/80 px-4 py-2 rounded-full border border-white/5 shadow-inner">
+                  <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+                  <span className="text-[9px] font-black tracking-widest text-zinc-400 uppercase">Camera Active · Calibrating Modalities</span>
                 </div>
               </div>
             )}
@@ -1071,12 +1242,65 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
             )}
             
             {/* Real-time Accessibility Subtitles Overlay */}
-            <SubtitleOverlay subtitles={subtitles} myId={user?._id} />
+            <SubtitleOverlay subtitles={subtitles} myId={user?._id} isCentral={user?.disabilityType === 'paralyzed'} />
+
+            {/* Real-time Interim Streaming Subtitle (Typing / Speaking Indicator) */}
+            {remoteInterim && remoteInterim.text && (() => {
+              const mode = remoteInterim.inputMode || 'voice';
+              const modeMeta = {
+                voice:   { icon: '🎙️', label: 'is speaking...', color: 'text-teal-400 border-teal-500/30 shadow-[0_0_20px_rgba(20,184,166,0.25)] bg-gradient-to-br from-teal-950/80 to-zinc-950/90' },
+                gesture: { icon: '👋', label: 'is signing...',  color: 'text-cyan-400 border-cyan-500/30 shadow-[0_0_20px_rgba(34,211,238,0.25)] bg-gradient-to-br from-cyan-950/80 to-zinc-950/90' },
+                blink:   { icon: '👁️', label: 'is blinking...', color: 'text-indigo-400 border-indigo-500/30 shadow-[0_0_20px_rgba(99,102,241,0.25)] bg-gradient-to-br from-indigo-950/80 to-zinc-950/90' },
+                symbol:  { icon: '🗂️', label: 'is selecting...',color: 'text-amber-400 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.25)] bg-gradient-to-br from-amber-950/80 to-zinc-950/90' },
+                type:    { icon: '⌨️', label: 'is typing...',   color: 'text-rose-400 border-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.25)] bg-gradient-to-br from-rose-950/80 to-zinc-950/90' }
+              }[mode] || { icon: '💬', label: 'is transmitting...', color: 'text-white border-white/20 bg-zinc-950/90 shadow-[0_0_20px_rgba(255,255,255,0.1)]' };
+
+              const isUserDeaf = user?.disabilityType === 'deaf';
+
+              return (
+                <div 
+                  className={`absolute left-6 right-6 flex pointer-events-none z-30 transition-all duration-300
+                    ${isUserDeaf 
+                      ? 'bottom-28 justify-center scale-110 drop-shadow-[0_15px_30px_rgba(0,0,0,0.9)]' 
+                      : 'bottom-6 justify-start'}`}
+                >
+                  <div className={`max-w-xl px-5 py-4 rounded-[1.5rem] border backdrop-blur-3xl flex flex-col gap-2 relative overflow-hidden transition-all ${modeMeta.color}`}>
+                    {/* Ambient Glow */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.03),transparent_60%)] pointer-events-none" />
+                    
+                    <div className="flex items-center gap-2.5 relative z-10">
+                      <span className="text-sm drop-shadow-md animate-bounce">{modeMeta.icon}</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-95">
+                        {remoteParticipant?.name || recipientName} {modeMeta.label}
+                      </span>
+                      <span className="flex gap-0.5 items-end h-3">
+                        {[1, 2, 3].map(i => (
+                          <span 
+                            key={i} 
+                            className="w-0.5 h-2.5 rounded-full bg-current opacity-80 animate-bounce" 
+                            style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.6s' }} 
+                          />
+                        ))}
+                      </span>
+                    </div>
+
+                    <p className={`font-black tracking-wide leading-relaxed break-words drop-shadow-md pr-6
+                      ${isUserDeaf 
+                        ? 'text-lg sm:text-2xl text-cyan-300' 
+                        : 'text-sm text-white/90 italic'}`}
+                    >
+                      {remoteInterim.text}
+                      <span className="w-1.5 h-4 ml-1.5 inline-block bg-current animate-[ping_0.8s_infinite] align-middle" />
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Picture-in-Picture Local Node Feed */}
-          {!isVoiceOnly ? (
-            <div className="absolute bottom-4 right-4 lg:bottom-10 lg:right-10 w-24 h-36 lg:w-72 lg:h-48 rounded-xl lg:rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-50 group transition-all hover:scale-105 hover:border-teal-500/30">
+          {remoteStream && !isVoiceOnly ? (
+            <div className="absolute bottom-4 right-4 lg:bottom-10 lg:right-10 w-24 h-36 lg:w-72 lg:h-48 rounded-xl lg:rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-50 group transition-all hover:scale-105 hover:border-teal-500/30 animate-scale-in">
               <video
                 ref={localVideoRef}
                 className={`w-full h-full object-cover scale-x-[-1] transition-opacity duration-500 ${camOff ? 'opacity-0' : 'opacity-100'}`}
@@ -1096,13 +1320,15 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
               </div>
             </div>
           ) : (
-            // Voice call — show audio-only avatar in PiP position
-            <div className="absolute bottom-4 right-4 lg:bottom-10 lg:right-10 z-50 w-16 h-16 lg:w-24 lg:h-24 rounded-full border-2 border-teal-500/30 bg-gradient-to-br from-teal-900/60 to-zinc-900 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.3)] cursor-default backdrop-blur-md">
-              <span className="text-xl lg:text-3xl font-black text-teal-300 drop-shadow-md">{user?.name?.[0]?.toUpperCase() || '?'}</span>
-              <span className="text-[7px] lg:text-[9px] font-black text-teal-500/80 uppercase tracking-widest mt-0.5 lg:mt-1">You</span>
-              {/* Animated audio ring */}
-              <div className="absolute inset-0 rounded-full border border-teal-400/20 animate-ping" />
-            </div>
+            // Voice call or negotiation phase (without remote feed yet) — show audio-only avatar in PiP position ONLY for actual voice calls
+            isVoiceOnly && (
+              <div className="absolute bottom-4 right-4 lg:bottom-10 lg:right-10 z-50 w-16 h-16 lg:w-24 lg:h-24 rounded-full border-2 border-teal-500/30 bg-gradient-to-br from-teal-900/60 to-zinc-900 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(20,184,166,0.3)] cursor-default backdrop-blur-md">
+                <span className="text-xl lg:text-3xl font-black text-teal-300 drop-shadow-md">{user?.name?.[0]?.toUpperCase() || '?'}</span>
+                <span className="text-[7px] lg:text-[9px] font-black text-teal-500/80 uppercase tracking-widest mt-0.5 lg:mt-1">You</span>
+                {/* Animated audio ring */}
+                <div className="absolute inset-0 rounded-full border border-teal-400/20 animate-ping" />
+              </div>
+            )
           )}
         </section>
 
@@ -1135,7 +1361,13 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
               <span className="text-[9px] font-black uppercase tracking-widest bg-teal-500/10 text-teal-400 px-2 py-1 rounded-md border border-teal-500/20">{myInputMode} Active</span>
             </div>
             <div className="flex-1 relative z-10">
-              <RenderedInputPanel onSend={sendSubtitle} autoStart={myInputMode === 'voice'} />
+              <RenderedInputPanel 
+                onSend={sendSubtitle} 
+                onSendInterim={sendSubtitleInterim} 
+                subtitles={subtitles} 
+                remoteInterim={remoteInterim} 
+                autoStart={myInputMode === 'voice'} 
+              />
             </div>
           </div>
 

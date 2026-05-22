@@ -66,13 +66,17 @@ export default function IncomingCallModal() {
     }
     clearIncomingCall();
     setBlinkCount(0);
-    navigate(`/call/room/${incomingCall.roomCode}`, {
-      state: {
-        isInitiator: false,
-        callType: incomingCall.type || 'video',
-        recipientName: incomingCall.name,
-      },
-    });
+    
+    // 300ms hardware guard-band to allow webcam drivers to fully release prior to call room connection
+    setTimeout(() => {
+      navigate(`/call/room/${incomingCall.roomCode}`, {
+        state: {
+          isInitiator: false,
+          callType: incomingCall.type || 'video',
+          recipientName: incomingCall.name,
+        },
+      });
+    }, 300);
   }, [incomingCall, clearIncomingCall, navigate]);
 
   useEffect(() => {

@@ -8,8 +8,9 @@ const QUICK_PHRASES = [
   "Hello", "Yes", "No", "Thanks", "I agree", "Hold on", "Could you repeat that?", "Goodbye"
 ];
 
-export default function TypePanel({ onSend }) {
+export default function TypePanel({ onSend, onSendInterim }) {
   const [text, setText] = useState('');
+  const [localAudioFeedback, setLocalAudioFeedback] = useState(true);
   const textareaRef = useRef(null);
 
   // Auto-focus on mount
@@ -22,16 +23,21 @@ export default function TypePanel({ onSend }) {
     if (!msg) return;
     
     onSend(msg, 1.0);
+    if (onSendInterim) {
+      onSendInterim(''); // Clear interim when sent
+    }
     
-    // TTS (local feedback)
-    try {
-      const utter = new SpeechSynthesisUtterance(msg);
-      // Try to find a good English voice
-      const voices = window.speechSynthesis.getVoices();
-      const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || voices[0];
-      if (voice) utter.voice = voice;
-      window.speechSynthesis.speak(utter);
-    } catch(e) {}
+    // TTS (local feedback) - only play if feedback toggle is active
+    if (localAudioFeedback) {
+      try {
+        const utter = new SpeechSynthesisUtterance(msg);
+        // Try to find a good English voice
+        const voices = window.speechSynthesis.getVoices();
+        const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || voices[0];
+        if (voice) utter.voice = voice;
+        window.speechSynthesis.speak(utter);
+      } catch(e) {}
+    }
     
     setText('');
     textareaRef.current?.focus();
@@ -55,7 +61,18 @@ export default function TypePanel({ onSend }) {
             TTS Engine Ready
           </span>
         </div>
-        <span className="text-[9px] font-black text-rose-500/50 uppercase tracking-widest border border-rose-500/20 px-2 py-0.5 rounded-full">Keyboard Mode</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setLocalAudioFeedback(prev => !prev)}
+            className={`text-[9px] font-black uppercase tracking-widest border px-2.5 py-0.5 rounded-full transition-all duration-300 active:scale-95
+              ${localAudioFeedback 
+                ? 'border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20' 
+                : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-700'}`}
+          >
+            {localAudioFeedback ? '🔊 Audio Feedback On' : '🔇 Audio Feedback Off'}
+          </button>
+          <span className="text-[9px] font-black text-rose-500/50 uppercase tracking-widest border border-rose-500/20 px-2 py-0.5 rounded-full">Keyboard Mode</span>
+        </div>
       </div>
 
       {/* Input Area */}
@@ -69,7 +86,12 @@ export default function TypePanel({ onSend }) {
           rows={4}
           placeholder="Type message to synthesize..."
           value={text}
-          onChange={e => setText(e.target.value)}
+          onChange={e => {
+            setText(e.target.value);
+            if (onSendInterim) {
+              onSendInterim(e.target.value);
+            }
+          }}
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();

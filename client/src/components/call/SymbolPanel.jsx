@@ -1,7 +1,4 @@
-// client/src/components/call/SymbolPanel.jsx
-// AAC Pictogram Board for users with cognitive or speech impairments
-// Constructs sentences via symbolic grid, reads aloud via TTS, and sends to call room.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const SYMBOL_CATEGORIES = {
   'Basic': [
@@ -38,24 +35,154 @@ const SYMBOL_CATEGORIES = {
   ],
 };
 
-export default function SymbolPanel({ onSend }) {
+export default function SymbolPanel({ onSend, onSendInterim, subtitles, remoteInterim }) {
   const [activeCategory, setActiveCategory] = useState('Basic');
   const [sentence, setSentence] = useState([]);
+  const [highlightedSymbols, setHighlightedSymbols] = useState(new Set());
 
-  const addSymbol = (sym) => setSentence(s => [...s, sym]);
-  const removeLastSymbol = () => setSentence(s => s.slice(0, -1));
+  // Speech-to-Symbol mapping (Keyword flash updates from finalized text or live interim speech-in-progress)
+  useEffect(() => {
+    let text = '';
+    
+    // 1. Check if there's active interim text currently streaming
+    if (remoteInterim && remoteInterim.text) {
+      text = remoteInterim.text.toLowerCase();
+    } 
+    // 2. Fall back to the latest finalized subtitle text
+    else if (subtitles && subtitles.length > 0) {
+      const lastSub = subtitles[subtitles.length - 1];
+      if (lastSub && lastSub.text) {
+        text = lastSub.text.toLowerCase();
+      }
+    }
+
+    if (!text) return;
+
+    // Advanced semantic dictionary to handle roots, plurals, and conversational synonyms
+    const SEMANTIC_KEYWORDS = {
+      yes:       ['yes', 'yeah', 'yep', 'agree', 'correct', 'ok', 'okay'],
+      no:        ['no', 'nope', 'nay', 'disagree', 'stop', 'wrong'],
+      help:      ['help', 'save', 'sos', 'assist', 'emergency', 'danger'],
+      stop:      ['stop', 'halt', 'pause', 'quit', 'finish', 'end'],
+      more:      ['more', 'add', 'again', 'plus'],
+      finish:    ['finish', 'done', 'completed', 'ended', 'ready'],
+      water:     ['water', 'drink', 'thirsty', 'juice', 'beverage', 'hydrate'],
+      food:      ['food', 'eat', 'hungry', 'lunch', 'dinner', 'snack', 'meal'],
+      medicine:  ['medicine', 'pill', 'meds', 'med', 'tablet', 'drug'],
+      toilet:    ['toilet', 'bathroom', 'restroom', 'pee', 'poop', 'washroom'],
+      sleep:     ['sleep', 'sleeping', 'sleepy', 'tired', 'bed', 'exhausted'],
+      cold:      ['cold', 'freezing', 'chilly', 'winter', 'shivering'],
+      pain:      ['pain', 'painful', 'hurt', 'ache', 'sore'],
+      happy:     ['happy', 'glad', 'joy', 'smile', 'great', 'awesome'],
+      sad:       ['sad', 'cry', 'crying', 'unhappy', 'blue'],
+      scared:    ['scared', 'afraid', 'frightened', 'nervous', 'anxious'],
+      tired:     ['tired', 'exhausted', 'sleepy', 'fatigued'],
+      good:      ['good', 'great', 'fine', 'perfect', 'awesome', 'nice'],
+      doctor:    ['doctor', 'doc', 'nurse', 'physician', 'medic'],
+      hospital:  ['hospital', 'clinic', 'er', 'ward'],
+      call:      ['call', 'dial', 'phone', 'ring'],
+      emergency: ['emergency', 'danger', 'alert', 'siren', 'critical'],
+      breath:    ['breath', 'breathe', 'breathing', 'gasp', 'choke'],
+      fall:      ['fall', 'fell', 'dropped', 'slipped'],
+    };
+
+    const newHighlights = new Set();
+
+    Object.entries(SYMBOL_CATEGORIES).forEach(([cat, list]) => {
+      list.forEach(sym => {
+        const keywords = SEMANTIC_KEYWORDS[sym.id] || [sym.id.toLowerCase(), sym.label.toLowerCase()];
+        const matched = keywords.some(kw => text.includes(kw));
+        if (matched) {
+          newHighlights.add(sym.id);
+        }
+      });
+    });
+
+    if (newHighlights.size > 0) {
+      setHighlightedSymbols(newHighlights);
+      setActiveCategory('★ Peer Mentioned'); // Instantly focus on the smart category showing all matched visual tokens
+      
+      const timer = setTimeout(() => {
+        setHighlightedSymbols(new Set());
+        setActiveCategory(prev => prev === '★ Peer Mentioned' ? 'Basic' : prev);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [subtitles, remoteInterim]);
+
+  const addSymbol = (sym) => {
+    setSentence(s => {
+      const next = [...s, sym];
+      if (onSendInterim) {
+        onSendInterim(next.map(item => item.label).join(' '));
+      }
+      return next;
+    });
+
+    // Provide local auditory confirmation of tapped pictogram (AAC Best Practice)
+    try {
+      const utter = new SpeechSynthesisUtterance(sym.label);
+      utter.rate = 1.25;
+      const voices = window.speechSynthesis.getVoices();
+      const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || voices[0];
+      if (voice) utter.voice = voice;
+      window.speechSynthesis.speak(utter);
+    } catch (e) {}
+  };
+
+  const removeLastSymbol = () => {
+    setSentence(s => {
+      const next = s.slice(0, -1);
+      if (onSendInterim) {
+        onSendInterim(next.map(item => item.label).join(' '));
+      }
+      return next;
+    });
+
+    try {
+      const utter = new SpeechSynthesisUtterance("Delete");
+      utter.rate = 1.3;
+      window.speechSynthesis.speak(utter);
+    } catch (e) {}
+  };
 
   const sendSentence = () => {
     if (!sentence.length) return;
     const text = sentence.map(s => s.label).join(' ');
     onSend(text, 1.0);
+    if (onSendInterim) {
+      onSendInterim(''); // Clear interim when sent
+    }
     
     try {
-      const utter = new SpeechSynthesisUtterance(text);
+      const utter = new SpeechSynthesisUtterance("Sending " + text);
+      utter.rate = 1.15;
+      const voices = window.speechSynthesis.getVoices();
+      const voice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) || voices[0];
+      if (voice) utter.voice = voice;
       window.speechSynthesis.speak(utter);
     } catch(e) {}
 
     setSentence([]);
+  };
+
+  const categories = highlightedSymbols.size > 0
+    ? ['★ Peer Mentioned', ...Object.keys(SYMBOL_CATEGORIES)]
+    : Object.keys(SYMBOL_CATEGORIES);
+
+  const getVisibleSymbols = () => {
+    if (activeCategory === '★ Peer Mentioned') {
+      const list = [];
+      Object.values(SYMBOL_CATEGORIES).forEach(categorySymbols => {
+        categorySymbols.forEach(sym => {
+          if (highlightedSymbols.has(sym.id)) {
+            list.push(sym);
+          }
+        });
+      });
+      return list;
+    }
+    return SYMBOL_CATEGORIES[activeCategory] || [];
   };
 
   return (
@@ -93,11 +220,13 @@ export default function SymbolPanel({ onSend }) {
 
       {/* Category Navigation Pills */}
       <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar relative z-10 px-1">
-        {Object.keys(SYMBOL_CATEGORIES).map(cat => (
+        {categories.map(cat => (
           <button key={cat} onClick={() => setActiveCategory(cat)}
             className={`px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all duration-300 active:scale-95
                          ${activeCategory === cat
-                ? 'bg-amber-500 border border-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                ? cat === '★ Peer Mentioned'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 border border-amber-400 text-black shadow-[0_0_25px_rgba(251,191,36,0.55)] animate-pulse'
+                  : 'bg-amber-500 border border-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]'
                 : 'bg-[#0a0a0a] border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 hover:bg-white/5'}`}>
             {cat}
           </button>
@@ -106,13 +235,16 @@ export default function SymbolPanel({ onSend }) {
 
       {/* Primary Symbol Grid */}
       <div className="flex-1 grid grid-cols-3 sm:grid-cols-3 gap-3 sm:gap-4 relative z-10 overflow-y-auto custom-scrollbar pr-1 pb-2">
-        {SYMBOL_CATEGORIES[activeCategory].map(sym => (
+        {getVisibleSymbols().map(sym => (
           <button key={sym.id} onClick={() => addSymbol(sym)}
-            className="group relative flex flex-col items-center justify-center gap-3 aspect-square rounded-[2rem] bg-[#060606] border border-white/5 shadow-[0_5px_20px_rgba(0,0,0,0.5)]
-                         hover:bg-[#0a0a0a] hover:border-amber-500/30 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] transition-all duration-300 hover:-translate-y-1 active:scale-[0.92] active:translate-y-1 overflow-hidden">
+            className={`group relative flex flex-col items-center justify-center gap-3 aspect-square rounded-[2rem] bg-[#060606] border shadow-[0_5px_20px_rgba(0,0,0,0.5)]
+                         transition-all duration-300 hover:-translate-y-1 active:scale-[0.92] active:translate-y-1 overflow-hidden
+                         ${highlightedSymbols.has(sym.id) 
+                           ? 'border-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.6)] bg-amber-500/10 scale-105 animate-pulse' 
+                           : 'border-white/5 hover:border-amber-500/30 hover:shadow-[0_10px_30px_rgba(245,158,11,0.15)] hover:bg-[#0a0a0a]'}`}>
             <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="text-4xl sm:text-5xl filter drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)] group-hover:scale-110 transition-transform duration-300 relative z-10">{sym.emoji}</span>
-            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.15em] group-hover:text-amber-400 transition-colors relative z-10">{sym.label}</span>
+            <span className={`text-[11px] font-black uppercase tracking-[0.15em] transition-colors relative z-10 ${highlightedSymbols.has(sym.id) ? 'text-amber-400' : 'text-zinc-500 group-hover:text-amber-400'}`}>{sym.label}</span>
           </button>
         ))}
       </div>
@@ -124,7 +256,14 @@ export default function SymbolPanel({ onSend }) {
                        hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-all duration-300 disabled:opacity-30 disabled:hover:border-white/10 active:scale-95 shadow-lg flex items-center justify-center">
           ←
         </button>
-        <button onClick={() => setSentence([])} disabled={!sentence.length}
+        <button onClick={() => {
+          setSentence([]);
+          try {
+            const utter = new SpeechSynthesisUtterance("Cleared");
+            utter.rate = 1.3;
+            window.speechSynthesis.speak(utter);
+          } catch (e) {}
+        }} disabled={!sentence.length}
           className="col-span-1 h-14 rounded-2xl bg-[#060606] border border-white/10 text-rose-400 text-xl font-black
                        hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/30 transition-all duration-300 disabled:opacity-30 disabled:hover:border-white/10 active:scale-95 shadow-lg flex items-center justify-center">
           ✕

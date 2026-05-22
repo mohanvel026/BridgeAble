@@ -250,12 +250,24 @@ exports.initSocket = (server) => {
       socket.to(roomCode).emit('call:track-state', { userId: socket.userId, audio, video });
     });
 
+    socket.on('mode:switch', ({ roomCode, newMode }) => {
+      socket.to(roomCode).emit('mode:switched', { userId: socket.userId, newMode });
+    });
+
     socket.on('call:end', ({ roomCode, durationSeconds }) => {
       io.to(roomCode).emit('call:ended');
     });
 
     socket.on('call:end-graceful', ({ roomCode }) => {
       socket.to(roomCode).emit('call:ended-graceful', { userId: socket.userId });
+    });
+
+    socket.on('subtitle:interim-send', ({ roomCode, text, inputMode }) => {
+      socket.to(roomCode).emit('subtitle:interim-receive', {
+        senderId: socket.userId,
+        text,
+        inputMode,
+      });
     });
 
     // ── Transcript / subtitles ────────────────────────────────────────────────
@@ -316,9 +328,6 @@ exports.initSocket = (server) => {
       });
     });
 
-    socket.on('mode:switch', ({ roomCode, newMode }) => {
-      socket.to(roomCode).emit('mode:switched', { newMode });
-    });
 
     // ── SOS Alerts ────────────────────────────────────────────────────────────
     socket.on('sos:trigger', async (data) => {
