@@ -301,15 +301,18 @@ export default function CallRoom() {
         if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
           console.log('[WebRTC] Binding remote video stream...');
           remoteVideoRef.current.srcObject = remoteStream;
+          remoteVideoRef.current.play().catch(err => console.debug('Remote video play blocked:', err));
         }
         if (localVideoRef.current && localStreamRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
           console.log('[WebRTC] Binding local video stream (PiP)...');
           localVideoRef.current.srcObject = localStreamRef.current;
+          localVideoRef.current.play().catch(err => console.debug('Local video play blocked:', err));
         }
       } else {
         if (localVideoRef.current && localStreamRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
           console.log('[WebRTC] Binding local video stream (Main Preview)...');
           localVideoRef.current.srcObject = localStreamRef.current;
+          localVideoRef.current.play().catch(err => console.debug('Local video preview play blocked:', err));
         }
       }
     };
