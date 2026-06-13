@@ -416,3 +416,20 @@ body[data-nav-mode="symbol"] *:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Global Header Offset & Fixed Layout Fixes ─────────── */
+header {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  background: rgba(2, 8, 8, 0.8) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+header + * {
+  margin-top: 5rem !important;
+}
