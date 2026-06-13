@@ -13,6 +13,14 @@ const TASK_CATEGORIES = [
   { id: 'other', label: 'Miscellaneous', icon: '📋' },
 ];
 
+const CATEGORY_COLORS = {
+  routine: { bg: 'bg-sky-500/10 hover:bg-sky-500/15', border: 'border-sky-500/20 hover:border-sky-400/50', text: 'text-sky-400', tag: 'Morning Routine' },
+  meal:    { bg: 'bg-orange-500/10 hover:bg-orange-500/15', border: 'border-orange-500/20 hover:border-orange-400/50', text: 'text-orange-400', tag: 'Meal' },
+  physio:  { bg: 'bg-violet-500/10 hover:bg-violet-500/15', border: 'border-violet-500/20 hover:border-violet-400/50', text: 'text-violet-400', tag: 'Physiotherapy' },
+  med:     { bg: 'bg-teal-500/10 hover:bg-teal-500/15', border: 'border-teal-500/20 hover:border-teal-400/50', text: 'text-teal-400', tag: 'Medication' },
+  other:   { bg: 'bg-zinc-800/40 hover:bg-zinc-800/60', border: 'border-white/5 hover:border-white/10', text: 'text-zinc-400', tag: 'Miscellaneous' },
+};
+
 export default function HelperSchedule() {
   const { user } = useAuthStore();
   const [patients, setPatients] = useState([]);
@@ -52,7 +60,10 @@ export default function HelperSchedule() {
   };
 
   const fetchTasks = async () => {
-    setTasks([]);
+    try {
+      const res = await api.get(`/tasks/patient/${activeP}`);
+      setTasks(res.data.tasks || []);
+    } catch { }
   };
 
   const addTime = () => setMedForm(p => ({ ...p, times: [...p.times, '12:00'] }));
@@ -84,12 +95,33 @@ export default function HelperSchedule() {
     if (!taskForm.title) { toast.error('Task definition requires a title'); return; }
     setSaving(true);
     try {
-      setTasks(p => [...p, { ...taskForm, _id: Date.now(), status: 'todo' }]);
+      const res = await api.post('/tasks', { ...taskForm, patientId: activeP });
+      setTasks(p => [...p, res.data.task]);
       toast.success('Care objective scheduled');
       setShowAddTask(false);
       setTaskForm({ title: '', notes: '', category: 'routine', scheduledFor: '' });
     } catch { toast.error('Failed to schedule objective'); }
     finally { setSaving(false); }
+  };
+
+  const updateTaskStatus = async (taskId, newStatus) => {
+    try {
+      const res = await api.patch(`/tasks/${taskId}`, { status: newStatus });
+      setTasks(p => p.map(t => t._id === taskId ? res.data.task : t));
+      toast.success('Task status updated');
+    } catch {
+      toast.error('Failed to update task status');
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      setTasks(p => p.filter(t => t._id !== taskId));
+      toast.success('Task archived');
+    } catch {
+      toast.error('Failed to archive task');
+    }
   };
 
   const activePatient = patients.find(p => p._id === activeP);
@@ -385,26 +417,35 @@ export default function HelperSchedule() {
                         </div>
                         
                         <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-                          {tasks.filter(t => t.status === status).map(task => (
-                            <div key={task._id} className="p-4 rounded-2xl bg-zinc-950/80 border border-white/5 shadow-md hover:border-white/20 transition-all group">
-                              <div className="flex items-start gap-3 mb-2">
-                                <span className="text-xl bg-zinc-900 p-2 rounded-xl shadow-inner flex-shrink-0">{TASK_CATEGORIES.find(c => c.id === task.category)?.icon || '📋'}</span>
-                                <div className="pt-1">
-                                  <p className="text-sm font-bold text-white leading-tight">{task.title}</p>
+                          {tasks.filter(t => t.status === status).map(task => {
+                            const cat = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
+                            return (
+                              <div key={task._id} className={`p-4 rounded-2xl border shadow-md hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden ${cat.bg} ${cat.border}`}>
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-xl bg-zinc-900/50 p-2 rounded-xl shadow-inner flex-shrink-0">{TASK_CATEGORIES.find(c => c.id === task.category)?.icon || '📋'}</span>
+                                    <div className="pt-1">
+                                      <p className="text-sm font-bold text-white leading-tight">{task.title}</p>
+                                      <span className={`text-[9px] font-black uppercase tracking-widest ${cat.text} mt-1 block`}>{cat.tag}</span>
+                                    </div>
+                                  </div>
+                                  <button onClick={() => deleteTask(task._id)} className="text-zinc-500 hover:text-rose-400 text-xs transition-colors self-start pt-1" title="Archive Task">
+                                    ✕
+                                  </button>
+                                </div>
+                                {task.notes && <p className="text-xs text-zinc-400 leading-relaxed mb-3 bg-zinc-900/50 p-2.5 rounded-xl border border-white/5">{task.notes}</p>}
+                                
+                                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/5">
+                                  {['todo', 'done', 'skip'].filter(s => s !== status).map(s => (
+                                    <button key={s} onClick={() => updateTaskStatus(task._id, s)}
+                                      className="flex-1 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-[10px] font-bold text-zinc-400 hover:text-white hover:border-teal-500/50 transition-all uppercase tracking-widest">
+                                      Move to {s}
+                                    </button>
+                                  ))}
                                 </div>
                               </div>
-                              {task.notes && <p className="text-xs text-zinc-400 leading-relaxed mb-3 bg-zinc-900/50 p-2 rounded-lg">{task.notes}</p>}
-                              
-                              <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/5">
-                                {['todo', 'done', 'skip'].filter(s => s !== status).map(s => (
-                                  <button key={s} onClick={() => setTasks(p => p.map(t => t._id === task._id ? { ...t, status: s } : t))}
-                                    className="flex-1 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-[10px] font-bold text-zinc-400 hover:text-white hover:border-teal-500/50 transition-all uppercase tracking-widest">
-                                    Move to {s}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                           {tasks.filter(t => t.status === status).length === 0 && (
                             <div className="h-full flex flex-col items-center justify-center opacity-50">
                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">No Tasks</p>

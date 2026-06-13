@@ -12,6 +12,14 @@ const QUICK_RESPONSES = ['Coming soon', 'Medicine ready', 'Called doctor', 'Rest
 
 const priorityMap = { sos: 0, emergency: 1, pain: 2, need: 3, emotion: 4, 'yes-no': 5, custom: 6 };
 
+const CATEGORY_COLORS = {
+  routine: { bg: 'bg-sky-500/10 hover:bg-sky-500/15', border: 'border-sky-500/20 hover:border-sky-400/50', text: 'text-sky-400', tag: 'Morning Routine' },
+  meal:    { bg: 'bg-orange-500/10 hover:bg-orange-500/15', border: 'border-orange-500/20 hover:border-orange-400/50', text: 'text-orange-400', tag: 'Meal' },
+  physio:  { bg: 'bg-violet-500/10 hover:bg-violet-500/15', border: 'border-violet-500/20 hover:border-violet-400/50', text: 'text-violet-400', tag: 'Physiotherapy' },
+  med:     { bg: 'bg-teal-500/10 hover:bg-teal-500/15', border: 'border-teal-500/20 hover:border-teal-400/50', text: 'text-teal-400', tag: 'Medication' },
+  other:   { bg: 'bg-zinc-800/40 hover:bg-zinc-800/60', border: 'border-white/5 hover:border-white/10', text: 'text-zinc-400', tag: 'Miscellaneous' },
+};
+
 export default function HelperDashboard() {
   const { user, token } = useAuthStore();
   const navigate = useNavigate();
@@ -70,9 +78,24 @@ export default function HelperDashboard() {
 
   const fetchPatientTasks = async (patientId) => {
     try {
-      // Placeholder for future task fetching
-      setTasks(p => ({ ...p, [patientId]: [] }));
+      const res = await api.get(`/tasks/patient/${patientId}`);
+      setTasks(p => ({ ...p, [patientId]: res.data.tasks || [] }));
     } catch { }
+  };
+
+  const toggleTaskStatus = async (taskId, currentStatus) => {
+    const statuses = ['todo', 'done', 'skip'];
+    const nextStatus = statuses[(statuses.indexOf(currentStatus) + 1) % statuses.length];
+    try {
+      const res = await api.patch(`/tasks/${taskId}`, { status: nextStatus });
+      setTasks(prev => ({
+        ...prev,
+        [activePatient]: prev[activePatient].map(t => t._id === taskId ? res.data.task : t)
+      }));
+      toast.success(`Task moved to ${nextStatus === 'todo' ? 'Pending' : nextStatus === 'done' ? 'Complete' : 'Skipped'}`);
+    } catch {
+      toast.error('Failed to update task');
+    }
   };
 
   useEffect(() => {
@@ -233,6 +256,10 @@ export default function HelperDashboard() {
   const activeMessages = messages[activePatient] || [];
   const activeTasks = tasks[activePatient] || [];
 
+  const totalTasks = activeTasks.length;
+  const completedTasks = activeTasks.filter(t => t.status === 'done').length;
+  const taskProgress = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
   if (loading) return (
     <div className="min-h-screen bg-[#020808] text-white flex flex-col">
       <Navbar />
@@ -378,6 +405,22 @@ export default function HelperDashboard() {
                     </div>
                   </div>
                   
+                  {totalTasks > 0 && (
+                    <div className="flex items-center gap-3 bg-zinc-950/40 border border-white/5 rounded-2xl px-4 py-2.5 backdrop-blur-md relative z-10">
+                      <div className="relative w-10 h-10 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                          <path className="text-zinc-800" strokeWidth="4" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                          <path className="text-teal-400 transition-all duration-500" strokeDasharray={`${taskProgress}, 100`} strokeWidth="4" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        </svg>
+                        <div className="absolute flex items-center justify-center text-[10px] font-black text-white font-mono">{taskProgress}%</div>
+                      </div>
+                      <div className="hidden sm:block">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Objectives</p>
+                        <p className="text-xs font-bold text-teal-300">{completedTasks}/{totalTasks} Done</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <button onClick={() => callPatient(activePatient)}
                     className="w-full sm:w-auto px-6 py-3.5 bg-teal-500 hover:bg-teal-400 text-teal-950 font-black tracking-wide rounded-xl transition-all shadow-lg shadow-teal-500/25 active:scale-95 flex items-center justify-center gap-2 relative z-10">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
@@ -490,7 +533,7 @@ export default function HelperDashboard() {
                   <div className="bg-zinc-900/40 border border-white/5 rounded-3xl p-6 backdrop-blur-xl shadow-2xl h-[500px] flex flex-col">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-sm font-black text-white uppercase tracking-widest">Care Tasks</h3>
-                      <button className="px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 text-xs font-bold hover:bg-teal-500/20 transition-colors">+ Add Task</button>
+                      <button onClick={() => navigate('/helper/schedule')} className="px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 text-xs font-bold hover:bg-teal-500/20 transition-colors">+ Add Task</button>
                     </div>
                     
                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 overflow-y-auto pr-1">
@@ -504,11 +547,24 @@ export default function HelperDashboard() {
                           </div>
                           
                           <div className="flex-1 space-y-2">
-                            {activeTasks.filter(t => t.status === status).map(task => (
-                              <div key={task._id} className="p-3 rounded-xl bg-zinc-950/80 border border-white/5 text-xs text-zinc-300 font-medium shadow-sm hover:border-white/20 transition-colors cursor-pointer">
-                                {task.title}
-                              </div>
-                            ))}
+                            {activeTasks.filter(t => t.status === status).map(task => {
+                              const cat = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
+                              return (
+                                <div key={task._id} onClick={() => toggleTaskStatus(task._id, task.status)} className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer shadow-sm relative overflow-hidden group ${cat.bg} ${cat.border}`} title="Click to change status">
+                                  <div className="flex items-start justify-between gap-2 mb-1">
+                                    <p className="text-xs font-bold text-white leading-snug group-hover:text-teal-300 transition-colors">{task.title}</p>
+                                  </div>
+                                  <span className={`text-[9px] font-black uppercase tracking-widest ${cat.text}`}>
+                                    {cat.tag}
+                                  </span>
+                                  {task.notes && (
+                                    <p className="text-[10px] text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
+                                      {task.notes}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
                             {activeTasks.filter(t => t.status === status).length === 0 && (
                               <div className="h-20 rounded-xl border-2 border-dashed border-white/5 flex items-center justify-center">
                                 <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Empty</p>

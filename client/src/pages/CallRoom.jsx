@@ -292,38 +292,78 @@ export default function CallRoom() {
     remoteStream
   } = useWebRTC(roomCode, socket, RTC_CONFIG, setRemoteParticipant);
 
-  // ── High-Resilience Video Stream Binder ──
-  useEffect(() => {
-    let active = true;
-    const bindStreams = () => {
-      if (!active) return;
-      if (remoteStream) {
-        if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== remoteStream) {
-          console.log('[WebRTC] Binding remote video stream...');
-          remoteVideoRef.current.srcObject = remoteStream;
-          remoteVideoRef.current.play().catch(err => console.debug('Remote video play blocked:', err));
-        }
-        if (localVideoRef.current && localStreamRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
-          console.log('[WebRTC] Binding local video stream (PiP)...');
-          localVideoRef.current.srcObject = localStreamRef.current;
-          localVideoRef.current.play().catch(err => console.debug('Local video play blocked:', err));
-        }
-      } else {
-        if (localVideoRef.current && localStreamRef.current && localVideoRef.current.srcObject !== localStreamRef.current) {
-          console.log('[WebRTC] Binding local video stream (Main Preview)...');
-          localVideoRef.current.srcObject = localStreamRef.current;
-          localVideoRef.current.play().catch(err => console.debug('Local video preview play blocked:', err));
-        }
-      }
+  // ── Robust Stream Binding and Autoplay Bypass ──
+  const bindStream = useCallback((videoElement, stream) => {
+    if (!videoElement || !stream) return;
+    
+    if (videoElement.srcObject !== stream) {
+      console.log('[WebRTC] Binding stream to video element:', stream.id);
+      videoElement.srcObject = stream;
+    }
+
+    const playVideo = () => {
+      videoElement.play().catch(err => {
+        console.warn('[WebRTC] Video playback blocked/failed:', err.name, err.message);
+        
+        // Register interaction listeners to resume play as soon as the user interacts with the page
+        const resumePlayback = () => {
+          if (videoElement.paused) {
+            videoElement.play()
+              .then(() => {
+                console.log('[WebRTC] Video playback resumed successfully after user interaction');
+                cleanupListeners();
+              })
+              .catch(e => console.debug('[WebRTC] Play failed on interaction:', e));
+          } else {
+            cleanupListeners();
+          }
+        };
+
+        const cleanupListeners = () => {
+          document.removeEventListener('click', resumePlayback);
+          document.removeEventListener('touchstart', resumePlayback);
+          document.removeEventListener('keydown', resumePlayback);
+        };
+
+        document.addEventListener('click', resumePlayback);
+        document.addEventListener('touchstart', resumePlayback);
+        document.addEventListener('keydown', resumePlayback);
+      });
     };
 
-    bindStreams();
-    const frameId = requestAnimationFrame(bindStreams);
-    return () => {
-      active = false;
-      cancelAnimationFrame(frameId);
-    };
-  }, [remoteStream, localStreamRef.current, callPhase]);
+    if (videoElement.readyState >= 1) {
+      playVideo();
+    } else {
+      videoElement.onloadedmetadata = () => {
+        playVideo();
+      };
+    }
+  }, []);
+
+  const remoteVideoRefCallback = useCallback((node) => {
+    remoteVideoRef.current = node;
+    if (node && remoteStream) {
+      bindStream(node, remoteStream);
+    }
+  }, [remoteStream, bindStream]);
+
+  const localVideoRefCallback = useCallback((node) => {
+    localVideoRef.current = node;
+    const stream = localStreamRef.current;
+    if (node && stream) {
+      bindStream(node, stream);
+    }
+  }, [localStreamRef.current, bindStream]);
+
+  // ── Stream Synchronization Effect ──
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      bindStream(remoteVideoRef.current, remoteStream);
+    }
+    if (localStreamRef.current && localVideoRef.current) {
+      bindStream(localVideoRef.current, localStreamRef.current);
+    }
+  }, [remoteStream, localStreamRef.current, bindStream]);
 
   // ── Enterprise Text To Speech Queue Processor ──
   const processTtsExecutionQueue = useCallback(() => {
@@ -676,7 +716,9 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
         }
 
         localStreamRef.current = mediaStream;
-        if (localVideoRef.current) localVideoRef.current.srcObject = mediaStream;
+        if (localVideoRef.current) {
+          bindStream(localVideoRef.current, mediaStream);
+        }
 
         // ── Flush pending peer join (peer arrived before camera was ready) ──
         const hasPendingJoin = !!pendingPeerJoinRef.current;
@@ -1162,14 +1204,14 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
             {/* Dynamic Full Screen Stream Router */}
             {remoteStream ? (
               <video 
-                ref={remoteVideoRef} 
+                ref={remoteVideoRefCallback} 
                 className={`w-full h-full object-cover transition-opacity duration-500 ${remoteCamOff ? 'opacity-0' : 'opacity-100'}`} 
                 autoPlay 
                 playsInline 
               />
             ) : (
               <video 
-                ref={localVideoRef} 
+                ref={localVideoRefCallback} 
                 className="w-full h-full object-cover scale-x-[-1] transition-opacity duration-500" 
                 autoPlay 
                 playsInline 
@@ -1305,7 +1347,7 @@ function createDynamicVideoFallbackTrack(label = 'User', activeRef) {
           {remoteStream && !isVoiceOnly ? (
             <div className="absolute bottom-4 right-4 lg:bottom-10 lg:right-10 w-24 h-36 lg:w-72 lg:h-48 rounded-xl lg:rounded-3xl border border-white/10 bg-zinc-950 overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-50 group transition-all hover:scale-105 hover:border-teal-500/30 animate-scale-in">
               <video
-                ref={localVideoRef}
+                ref={localVideoRefCallback}
                 className={`w-full h-full object-cover scale-x-[-1] transition-opacity duration-500 ${camOff ? 'opacity-0' : 'opacity-100'}`}
                 autoPlay playsInline muted
               />

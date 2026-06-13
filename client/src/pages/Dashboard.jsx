@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/stores';
 import { useSocketStore } from '../store/stores';
-import { createSocket } from '../lib/socket';
+import { getSocket } from '../lib/socket';
 import api from '../lib/api';
 import Navbar from '../components/Navbar';
 import InputModeSwitcher from '../components/InputModeSwitcher';
@@ -90,15 +90,12 @@ export default function Dashboard() {
 
   // Init socket and fetch data
   useEffect(() => {
-    const socket = createSocket(token);
-    setSocket(socket);
-
-    socket.on('call:incoming', (data) => setIncomingCall(data));
-    socket.on('presence:update', ({ userId, isOnline }) => setUserOnline(userId, isOnline));
-    socket.on('message:new', () => setUnreadCount(c => c + 1));
-    socket.on('checkin:prompt', () => {
-      // Show check-in prompt for paralyzed/blind users
-    });
+    const socket = getSocket();
+    if (socket) {
+      socket.on('call:incoming', (data) => setIncomingCall(data));
+      socket.on('presence:update', ({ userId, isOnline }) => setUserOnline(userId, isOnline));
+      socket.on('message:new', () => setUnreadCount(c => c + 1));
+    }
 
     fetchData();
 
@@ -109,9 +106,11 @@ export default function Dashboard() {
     }
 
     return () => {
-      socket.off('call:incoming');
-      socket.off('presence:update');
-      socket.off('message:new');
+      if (socket) {
+        socket.off('call:incoming');
+        socket.off('presence:update');
+        socket.off('message:new');
+      }
     };
   }, []);
 

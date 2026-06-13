@@ -188,15 +188,19 @@ exports.getMe = async (req, res) => {
       
       const populatedFriends = (user.friends || []).map(fId => offlineDb.getUserById(fId)).filter(Boolean);
       const populatedHelpers = (user.helpers || []).map(hId => offlineDb.getUserById(hId)).filter(Boolean);
+      const populatedPatients = (user.patients || []).map(pId => offlineDb.getUserById(pId)).filter(Boolean);
       
       const fullUser = {
         ...user,
         friends: populatedFriends,
-        helpers: populatedHelpers
+        helpers: populatedHelpers,
+        patients: populatedPatients
       };
       return res.json({ success: true, user: fullUser });
     }
-    const user = await User.findById(req.user._id).populate('helpers', 'name email isOnline avatar disabilityType');
+    const user = await User.findById(req.user._id)
+      .populate('helpers', 'name email isOnline avatar disabilityType')
+      .populate('patients', 'name email isOnline avatar disabilityType inputMode blinkProfile');
     res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
