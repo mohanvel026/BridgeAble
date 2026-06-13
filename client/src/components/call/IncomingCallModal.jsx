@@ -9,15 +9,15 @@ import useBlinkDetector from '../../hooks/useBlinkDetector';
 const RING_TIMEOUT_MS = 35000; // 35 seconds before auto-decline
 
 const DISABILITY_LABELS = {
-  deaf:      { icon: '👋', label: 'Deaf — Sign Language' },
-  paralyzed: { icon: '👁', label: 'Paralyzed — Eye Blink' },
+  deaf:      { icon: '🤟', label: 'Deaf — Type & Symbols' },
+  paralyzed: { icon: '👁', label: 'Paralyzed — Eye Blink'   },
   speech:    { icon: '🗂', label: 'Speech Impaired — Symbols' },
-  blind:     { icon: '🔊', label: 'Blind — Voice + TTS' },
-  normal:    { icon: '🤝', label: 'Helper / Normal' },
+  blind:     { icon: '🔊', label: 'Blind — Voice + TTS'    },
+  normal:    { icon: '🤝', label: 'Helper / Normal'       },
 };
 
 const MODE_BRIDGE = {
-  'deaf-normal':      '👋 Gesture ↔ 🎙 Voice',
+  'deaf-normal':      '🤟 Type ↔ 🎙 Voice',
   'paralyzed-normal': '👁 Blink ↔ 🎙 Voice',
   'speech-normal':    '🗂 Symbol ↔ 🎙 Voice',
   'blind-normal':     '🔊 TTS ↔ 🎙 Voice',

@@ -28,7 +28,6 @@ import SOSButton from './components/SOSButton';
 import IncomingCallModal from './components/call/IncomingCallModal';
 import BlinkNavigator from './components/BlinkNavigator';
 import VoiceNavigator from './components/VoiceNavigator';
-import DiscreteNavigator from './components/DiscreteNavigator';
 
 // Protected route wrapper
 const Protected = ({ children }) => {
@@ -68,7 +67,6 @@ export default function App() {
       {/* Global accessibility navigators — only render the active one to prevent camera/mic conflicts */}
       {user?.inputMode === 'blink' && <BlinkNavigator />}
       {user?.inputMode === 'voice' && <VoiceNavigator />}
-      {user?.inputMode === 'gesture' && <DiscreteNavigator />}
 
       <ErrorBoundary>
         <Routes>

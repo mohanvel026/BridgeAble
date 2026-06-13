@@ -174,14 +174,13 @@ export default function Profile() {
 
                 {/* Input Modality */}
                 <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Primary Neural Modality</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Communication Method</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
-                      { id: 'gesture', icon: '👋', label: 'Sign' },
-                      { id: 'blink', icon: '👁', label: 'Blink' },
-                      { id: 'symbol', icon: '🗂', label: 'AAC' },
-                      { id: 'voice', icon: '🎙', label: 'Voice' },
-                      { id: 'type', icon: '⌨️', label: 'Type' },
+                      { id: 'blink',  icon: '👁',  label: 'Blink'   },
+                      { id: 'symbol', icon: '🗂',  label: 'Symbols' },
+                      { id: 'voice',  icon: '🎙',  label: 'Voice'   },
+                      { id: 'type',   icon: '⌨️', label: 'Type'    },
                     ].map(m => (
                       <button key={m.id} onClick={() => setField('inputMode', m.id)}
                         className={`flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border transition-all duration-300
@@ -194,6 +193,7 @@ export default function Profile() {
                     ))}
                   </div>
                 </div>
+
 
                 {/* Cognitive Interests */}
                 <div>

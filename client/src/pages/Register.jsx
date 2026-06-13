@@ -7,11 +7,11 @@ import toast from 'react-hot-toast';
 const DISABILITY_CARDS = [
   {
     type: 'deaf',
-    icon: '👋',
+    icon: '🤟',
     label: 'Deaf / Mute',
-    desc: 'Communicate using sign language gestures detected by your camera',
+    desc: 'Communicate by typing or using the symbol/phrase board — no camera needed',
     color: 'cyan',
-    inputMode: 'gesture',
+    inputMode: 'type',
   },
   {
     type: 'paralyzed',

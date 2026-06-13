@@ -4,11 +4,10 @@ import { useAuthStore, useCallStore } from '../store/stores';
 import { getSocket } from '../lib/socket';
 
 const MODES = [
-  { id: 'gesture', label: 'Sign', icon: '👋', color: 'cyan', desc: 'ASL Gesture' },
-  { id: 'blink', label: 'Blink', icon: '👁', color: 'violet', desc: 'Eye Morse' },
-  { id: 'symbol', label: 'Symbol', icon: '🗂', color: 'amber', desc: 'Symbol Board' },
-  { id: 'voice', label: 'Voice', icon: '🎙', color: 'teal', desc: 'Microphone' },
-  { id: 'type', label: 'Type', icon: '⌨', color: 'rose', desc: 'Keyboard' },
+  { id: 'blink',  label: 'Blink',  icon: '👁',  color: 'violet', desc: 'Eye Morse Code' },
+  { id: 'symbol', label: 'Symbol', icon: '🗂',  color: 'amber',  desc: 'Symbol Board'  },
+  { id: 'voice',  label: 'Voice',  icon: '🎙',  color: 'teal',   desc: 'Microphone'    },
+  { id: 'type',   label: 'Type',   icon: '⌨️', color: 'rose',   desc: 'Keyboard'      },
 ];
 
 const colorClass = {
@@ -24,7 +23,7 @@ export default function InputModeSwitcher({ compact = false, roomCode = null }) 
   const { inputMode, setInputMode } = useCallStore();
   const [open, setOpen] = useState(false);
 
-  const current = MODES.find(m => m.id === (inputMode || user?.inputMode)) || MODES[3];
+  const current = MODES.find(m => m.id === (inputMode || user?.inputMode)) || MODES[2]; // default: voice
 
   const handleSwitch = (mode) => {
     setInputMode(mode.id);

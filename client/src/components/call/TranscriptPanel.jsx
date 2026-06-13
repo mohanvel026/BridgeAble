@@ -10,12 +10,12 @@ const UI_CONFIG = {
 };
 
 const MODE_META = {
-  gesture: { icon: '👋', color: '#a78bfa', label: 'Gesture' },
-  blink:   { icon: '👁', color: '#fb7185', label: 'Blink' },
-  symbol:  { icon: '🗂', color: '#fbbf24', label: 'Symbol' },
-  voice:   { icon: '🎙', color: '#2dd4bf', label: 'Voice' },
-  type:    { icon: '⌨️', color: '#38bdf8', label: 'Text' },
-  default: { icon: '💬', color: '#94a3b8', label: 'Message' }
+  gesture: { icon: '🤟', color: '#a78bfa', label: 'Sign/Type' }, // kept for backward-compat with historical transcripts
+  blink:   { icon: '👁', color: '#fb7185', label: 'Blink'     },
+  symbol:  { icon: '🗂', color: '#fbbf24', label: 'Symbol'    },
+  voice:   { icon: '🎙', color: '#2dd4bf', label: 'Voice'     },
+  type:    { icon: '⌨️', color: '#38bdf8', label: 'Text'      },
+  default: { icon: '💬', color: '#94a3b8', label: 'Message'   }
 };
 
 const REACTIONS = ['👍', '❤️', '😂', '🙏', '👏'];

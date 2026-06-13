@@ -53,14 +53,17 @@ const DISABILITY_COLORS = {
   normal: { ring: 'border-teal-500/40', text: 'text-teal-400', bg: 'bg-teal-500/10', glow: 'bg-teal-500' },
 };
 
-const MODE_ICON = { gesture: '👋', blink: '👁', symbol: '🗂', voice: '🎙', type: '⌨️' };
+const MODE_ICON = { gesture: '🤟', blink: '👁', symbol: '🗂', voice: '🎙', type: '⌨️' };
 
 function getCompatBridge(a, b) {
   const map = {
-    'deaf-normal': 'Gesture + Voice bridge', 'paralyzed-normal': 'Blink + Voice bridge',
-    'speech-normal': 'Symbol + Voice bridge', 'blind-normal': 'Voice + TTS bridge',
-    'deaf-paralyzed': 'Gesture + Blink bridge', 'deaf-speech': 'Gesture + Symbol bridge',
-    'paralyzed-speech': 'Blink + Symbol bridge',
+    'deaf-normal':       'Type + Voice bridge',
+    'paralyzed-normal':  'Blink + Voice bridge',
+    'speech-normal':     'Symbol + Voice bridge',
+    'blind-normal':      'Voice + TTS bridge',
+    'deaf-paralyzed':    'Type + Blink bridge',
+    'deaf-speech':       'Type + Symbol bridge',
+    'paralyzed-speech':  'Blink + Symbol bridge',
   };
   return map[`${a}-${b}`] || map[`${b}-${a}`] || '🔗 Full bridge active';
 }

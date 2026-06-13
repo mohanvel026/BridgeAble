@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef, memo, useCallback, useMemo } from '
 
 const MODE_ICON = {
   voice:   '🎙',
-  gesture: '👋',
+  gesture: '🤟', // kept for backward-compat
   blink:   '👁',
   symbol:  '🗂',
   type:    '⌨️',

@@ -4,11 +4,10 @@
 import { useState } from 'react';
 
 const MODES = [
-  { id: 'gesture', icon: '👋', label: 'Sign Language', for: ['deaf'] },
-  { id: 'blink', icon: '👁', label: 'Eye Blink', for: ['paralyzed'] },
-  { id: 'symbol', icon: '🗂', label: 'Symbol Board', for: ['speech'] },
-  { id: 'voice', icon: '🎙', label: 'Voice', for: ['blind', 'normal'] },
-  { id: 'type', icon: '⌨️', label: 'Type + TTS', for: [] },
+  { id: 'blink',  icon: '👁',  label: 'Eye Blink',    for: ['paralyzed'] },
+  { id: 'symbol', icon: '🗂',  label: 'Symbol Board', for: ['speech', 'deaf'] },
+  { id: 'voice',  icon: '🎙',  label: 'Voice',        for: ['blind', 'normal'] },
+  { id: 'type',   icon: '⌨️', label: 'Type + TTS',   for: [] },
 ];
 
 const disabilityColors = {
