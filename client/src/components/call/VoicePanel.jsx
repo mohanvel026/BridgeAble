@@ -130,14 +130,8 @@ export default function VoicePanel({ onSend, onSendInterim, autoStart = false })
   const [language, setLanguage] = useState('en-US');
   const [interimText, setInterimText] = useState('');
   
-  // Audio visualization state
+  // Audio visualization state (simulated waveform — no second mic needed)
   const [audioData, setAudioData] = useState(new Array(16).fill(0));
-  const audioContextRef = useRef(null);
-  const analyzerRef = useRef(null);
-  const dataArrayRef = useRef(null);
-  const sourceRef = useRef(null);
-  const streamRef = useRef(null);
-  const animationFrameRef = useRef(null);
 
   const handleFinalTranscript = useCallback((text, confidence) => {
     setInterimText('');
@@ -159,109 +153,31 @@ export default function VoicePanel({ onSend, onSendInterim, autoStart = false })
   });
 
 
-  // Setup real-time audio visualization when listening
+  // Setup animated waveform visualizer when listening
+  // NOTE: We use a simulated waveform — NOT a second getUserMedia call.
+  // WebRTC already owns the mic. Opening a second stream causes conflicts &
+  // can produce a black video screen by triggering browser device-busy errors.
   useEffect(() => {
+    let frameId;
+    let angle = 0;
+
     if (!isListening) {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (sourceRef.current) {
-        sourceRef.current.disconnect();
-        sourceRef.current = null;
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
-      }
-      audioContextRef.current = null;
-      analyzerRef.current = null;
       setAudioData(new Array(16).fill(0));
       return;
     }
 
-    const startAudioVisualizer = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        streamRef.current = stream;
-        
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioContextRef.current = new AudioContext();
-        analyzerRef.current = audioContextRef.current.createAnalyser();
-        
-        // Fast Fourier Transform size
-        analyzerRef.current.fftSize = 64; 
-        
-        sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
-        sourceRef.current.connect(analyzerRef.current);
-        
-        const bufferLength = analyzerRef.current.frequencyBinCount;
-        dataArrayRef.current = new Uint8Array(bufferLength);
-
-        const updateVisualizer = () => {
-          if (!analyzerRef.current) return;
-          analyzerRef.current.getByteFrequencyData(dataArrayRef.current);
-          
-          // Sample 16 bins for the visualizer
-          const samples = [];
-          for (let i = 0; i < 16; i++) {
-            const val = dataArrayRef.current[i] || 0;
-            samples.push((val / 255) * 100);
-          }
-          setAudioData(samples);
-          
-          animationFrameRef.current = requestAnimationFrame(updateVisualizer);
-        };
-        
-        updateVisualizer();
-      } catch (err) {
-        console.warn('Microphone hardware locked or blocked by WebRTC. Initiating high-fidelity simulated audio visualizer fallback:', err);
-        
-        // Start simulated waveform generator to keep visualizer fully animated and premium
-        let simFrameId;
-        let angle = 0;
-        const updateSimulatedVisualizer = () => {
-          if (!isListening) return;
-          const samples = [];
-          for (let i = 0; i < 16; i++) {
-            // Generate a beautiful, organic mathematical wave using sine and cosine harmonies
-            const val = 15 + Math.abs(Math.sin(angle + i * 0.45) * Math.cos(angle * 0.65 - i * 0.3)) * 65;
-            samples.push(val);
-          }
-          setAudioData(samples);
-          angle += 0.12;
-          simFrameId = requestAnimationFrame(updateSimulatedVisualizer);
-        };
-        
-        updateSimulatedVisualizer();
-        animationFrameRef.current = {
-          cancel: () => cancelAnimationFrame(simFrameId)
-        };
-      }
+    const animate = () => {
+      const samples = Array.from({ length: 16 }, (_, i) =>
+        12 + Math.abs(Math.sin(angle + i * 0.45) * Math.cos(angle * 0.6 - i * 0.35)) * 70
+      );
+      setAudioData(samples);
+      angle += 0.1;
+      frameId = requestAnimationFrame(animate);
     };
 
-    startAudioVisualizer();
+    animate();
 
-    return () => {
-      if (animationFrameRef.current) {
-        if (typeof animationFrameRef.current === 'number') {
-          cancelAnimationFrame(animationFrameRef.current);
-        } else if (animationFrameRef.current.cancel) {
-          animationFrameRef.current.cancel();
-        }
-      }
-      if (sourceRef.current) {
-        sourceRef.current.disconnect();
-        sourceRef.current = null;
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close().catch(() => {});
-      }
-    };
+    return () => cancelAnimationFrame(frameId);
   }, [isListening]);
 
   const handleToggleState = () => {
@@ -346,23 +262,23 @@ export default function VoicePanel({ onSend, onSendInterim, autoStart = false })
         )}
       </div>
 
-      <button 
+      <button
         onClick={handleToggleState}
         aria-live="polite"
         aria-pressed={isListening}
-        className={`w-full py-4 rounded-2xl border font-black text-[11px] uppercase tracking-[0.2em] transition-all focus:outline-none shadow-sm active:scale-95 group relative overflow-hidden z-10
+        className={`w-full py-4 rounded-2xl border font-black text-[11px] uppercase tracking-[0.2em] transition-all focus:outline-none active:scale-95 group relative overflow-hidden z-10
           ${isListening
             ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.15)] hover:bg-rose-500/20'
             : 'bg-teal-500/10 border-teal-500/30 text-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.1)] hover:bg-teal-500/20'}`}
       >
         <span className="relative z-10 flex items-center justify-center gap-3">
-          <span className="text-xl group-hover:scale-110 transition-transform">{isListening ? '🛑' : '🎙'}</span>
-          {isListening ? 'Stop Engine' : 'Initialize Engine'}
+          <span className="text-xl group-hover:scale-110 transition-transform">{isListening ? '🛑' : '🎙️'}</span>
+          {isListening ? 'Stop Listening' : 'Start Listening'}
         </span>
       </button>
 
-      <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest text-center leading-relaxed px-4 relative z-10">
-        VAD Activated <span className="mx-1 text-zinc-700">·</span> DTLS-SRTP Encrypted
+      <p className="text-[9px] text-zinc-600 font-semibold text-center px-4 relative z-10">
+        Speak clearly · Your voice is transcribed and sent to the other person
       </p>
     </div>
   );
