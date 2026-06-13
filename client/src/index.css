@@ -224,8 +224,9 @@ h6 {
   }
 
   /* Focus — full cyan glow ring */
-  .input:focus {
-    outline: none;
+  .input:focus,
+  .input:focus-visible {
+    outline: none !important;
     border-color: var(--accent-cyan);
     box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12), 0 4px 20px rgba(34, 211, 238, 0.15);
     background: rgba(7, 26, 25, 1);
