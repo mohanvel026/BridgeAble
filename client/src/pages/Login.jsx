@@ -24,7 +24,7 @@ export default function Login() {
       if (res.needsCalibration) navigate('/onboarding');
       else navigate('/dashboard');
     } catch (err) {
-      toast.error(err.message || 'Invalid credentials');
+      toast.error(err.response?.data?.message || err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }

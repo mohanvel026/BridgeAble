@@ -81,7 +81,7 @@ export default function Register() {
       if (result.needsCalibration) navigate('/onboarding');
       else navigate('/dashboard');
     } catch (err) {
-      toast.error(err.message || 'Registration failed');
+      toast.error(err.response?.data?.message || err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
