@@ -81,7 +81,10 @@ export default function Register() {
       if (result.needsCalibration) navigate('/onboarding');
       else navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Registration failed');
+      const serverMessage = err.response?.data?.message;
+      const isHtmlResponse = typeof err.response?.data === 'string' && err.response.data.toLowerCase().includes('<html');
+      const errorMsg = serverMessage || (isHtmlResponse ? 'Server returned HTML (LocalTunnel bypass required or server offline)' : err.message) || 'Registration failed';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

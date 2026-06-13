@@ -24,7 +24,10 @@ export default function Login() {
       if (res.needsCalibration) navigate('/onboarding');
       else navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Invalid credentials');
+      const serverMessage = err.response?.data?.message;
+      const isHtmlResponse = typeof err.response?.data === 'string' && err.response.data.toLowerCase().includes('<html');
+      const errorMsg = serverMessage || (isHtmlResponse ? 'Server returned HTML (LocalTunnel bypass required or server offline)' : err.message) || 'Invalid credentials';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
