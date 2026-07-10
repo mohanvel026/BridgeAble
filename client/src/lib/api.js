@@ -28,7 +28,9 @@ api.interceptors.response.use(
     // 1. Auto-logout on 401 Unauthorized
     if (response?.status === 401 && window.location.pathname !== '/login') {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      toast.error('Your session has expired. Please sign in again.', { id: 'session-expired', duration: 3000 });
+      // Small delay so toast is visible before navigation
+      setTimeout(() => { window.location.href = '/login'; }, 1500);
       return Promise.reject(err);
     }
     
@@ -39,7 +41,8 @@ api.interceptors.response.use(
     }
 
     // 3. Network or 5xx error retry logic (Up to 3 retries for GET/PUT)
-    const isIdempotent = config?.method === 'get' || config?.method === 'put';
+    const method = config?.method?.toLowerCase();
+    const isIdempotent = method === 'get' || method === 'put';
     const isNetworkOrServerErr = !response || (response.status >= 500 && response.status < 600);
     
     if (config && isIdempotent && isNetworkOrServerErr && config.retryCount < 3) {
@@ -63,8 +66,8 @@ api.interceptors.response.use(
     
     toast.dismiss('retry-toast');
     
-    // 4. Global generic network drop
-    if (err.message === 'Network Error' && !response) {
+    // 4. Global generic network drop (use axios idiom, not fragile string check)
+    if (!err.response && err.request) {
       toast.error('Unable to reach servers. Check your connection.', { id: 'network-err' });
     }
 

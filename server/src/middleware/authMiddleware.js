@@ -3,6 +3,12 @@
 const jwt     = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
+// Startup assertion — fail immediately if JWT_SECRET is missing
+if (!process.env.JWT_SECRET) {
+  console.error('❌ FATAL: JWT_SECRET environment variable is not set. Server refusing to start.');
+  process.exit(1);
+}
+
 // ── In-memory user cache (reduces DB round-trips on hot paths) ────────────────
 // Each entry: { user, expiresAt }  — TTL: 60 seconds
 const userCache = new Map();
@@ -77,7 +83,8 @@ exports.protect = async (req, res, next) => {
       if (!user) {
         return res.status(401).json({ success: false, code: 'USER_NOT_FOUND', message: 'User not found.' });
       }
-      cacheUser(userId, user);
+      // Clone before caching to prevent cross-request object mutation
+      cacheUser(userId, JSON.parse(JSON.stringify(user)));
     }
 
     req.user = user;

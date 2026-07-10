@@ -35,7 +35,11 @@ exports.checkCallLimit = async (req, res, next) => {
     req.remainingCallSeconds = FREE_LIMIT_SECONDS - totalSeconds;
     next();
   } catch (err) {
-    next(); // Don't block call on middleware error
+    console.error('[freeTierLimit:checkCallLimit] DB error:', err.message);
+    return res.status(503).json({
+      success: false,
+      message: 'Service temporarily unavailable. Please try again in a moment.',
+    });
   }
 };
 
@@ -55,7 +59,11 @@ exports.checkHelperLimit = async (req, res, next) => {
     }
     next();
   } catch (err) {
-    next();
+    console.error('[freeTierLimit:checkHelperLimit] DB error:', err.message);
+    return res.status(503).json({
+      success: false,
+      message: 'Service temporarily unavailable. Please try again in a moment.',
+    });
   }
 };
 

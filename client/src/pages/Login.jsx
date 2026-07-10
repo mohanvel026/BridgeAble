@@ -16,11 +16,16 @@ export default function Login() {
   const fontSizeMap = { small: 'text-sm', medium: 'text-base', large: 'text-lg' };
 
   const handleLogin = async () => {
+    if (loading) return; // prevent double-submit
     if (!form.email || !form.password) { toast.error('Please fill all fields'); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) { toast.error('Please enter a valid email address'); return; }
     setLoading(true);
     try {
-      const res = await login(form.email, form.password);
-      toast.success(`Welcome back, ${res.user.name}!`);
+      const res = await login(form.email.trim(), form.password);
+      const name = res?.user?.name || 'back';
+      toast.success(`Welcome ${name}!`);
+      if (rememberMe) localStorage.setItem('ba_rememberMe', '1');
       if (res.needsCalibration) navigate('/onboarding');
       else navigate('/dashboard');
     } catch (err) {
@@ -88,7 +93,8 @@ export default function Login() {
             <div>
               <label className="block text-sm text-text-secondary mb-1.5">Email</label>
               <input className="input" type="email" placeholder="you@email.com"
-                value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+                value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && !loading && handleLogin()} />
             </div>
             <div>
               <div className="flex justify-between mb-1.5">
@@ -97,7 +103,7 @@ export default function Login() {
               </div>
               <input className="input" type="password" placeholder="Your password"
                 value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+                onKeyDown={e => e.key === 'Enter' && !loading && handleLogin()} />
             </div>
           </div>
 

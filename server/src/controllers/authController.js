@@ -31,6 +31,21 @@ exports.register = async (req, res) => {
       helperEmail, language, speed,
     } = req.body;
 
+    // ── Input validation ──────────────────────────────────
+    if (!name?.trim() || !email?.trim() || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+    }
+    if (!disabilityType) {
+      return res.status(400).json({ success: false, message: 'Please select your profile type.' });
+    }
+
     if (mongoose.connection.readyState !== 1) {
       console.log('🤖 Database offline. Registering offline mock user.');
       
@@ -64,10 +79,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // Link helper if email provided
+    // Link helper if email provided — use single lookup, not two
+    let helper = null;
     let helpers = [];
     if (helperEmail) {
-      const helper = await User.findOne({ email: helperEmail });
+      helper = await User.findOne({ email: helperEmail });
       if (helper) helpers = [helper._id];
     }
 
@@ -81,14 +97,11 @@ exports.register = async (req, res) => {
       preferences: { language: language || 'en', speed: speed || 'normal' },
     });
 
-    // If helper was found, add this user as their patient
-    if (helperEmail) {
-      const helper = await User.findOne({ email: helperEmail });
-      if (helper) {
-        helper.patients = helper.patients || [];
-        helper.patients.push(user._id);
-        await helper.save();
-      }
+    // If helper was found, add this user as their patient (reuse lookup above)
+    if (helper) {
+      helper.patients = helper.patients || [];
+      helper.patients.push(user._id);
+      await helper.save();
     }
 
     const token = signToken(user._id);
@@ -102,7 +115,11 @@ exports.register = async (req, res) => {
       needsCalibration: disabilityType === 'paralyzed',
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('[register]', err.message);
+    res.status(500).json({
+      success: false,
+      message: process.env.NODE_ENV === 'production' ? 'Registration failed. Please try again.' : err.message,
+    });
   }
 };
 
@@ -110,6 +127,11 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // ── Input validation ──────────────────────────────────
+    if (!email?.trim() || !password) {
+      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
 
     if (mongoose.connection.readyState !== 1) {
       console.log('🤖 Database offline. Authenticating via offline database.');
@@ -155,7 +177,11 @@ exports.login = async (req, res) => {
       needsCalibration: user.disabilityType === 'paralyzed' && !user.blinkProfile.calibrated,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('[login]', err.message);
+    res.status(500).json({
+      success: false,
+      message: process.env.NODE_ENV === 'production' ? 'Login failed. Please try again.' : err.message,
+    });
   }
 };
 
@@ -175,7 +201,11 @@ exports.logout = async (req, res) => {
     res.clearCookie('token');
     res.json({ success: true, message: 'Logged out' });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('[logout]', err.message);
+    res.status(500).json({
+      success: false,
+      message: process.env.NODE_ENV === 'production' ? 'Logout failed.' : err.message,
+    });
   }
 };
 
@@ -287,7 +317,7 @@ exports.saveBlinkCalibration = async (req, res) => {
 // ── Helpers ───────────────────────────────────────────────
 function getDefaultMode(disabilityType) {
   const map = {
-    deaf: 'gesture',
+    deaf: 'type',       // keyboard/type — gesture removed
     paralyzed: 'blink',
     speech: 'symbol',
     blind: 'voice',

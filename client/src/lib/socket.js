@@ -26,8 +26,8 @@ export const createSocket = (token, userId) => {
   const SERVER_URL = import.meta.env.VITE_SERVER_URL || window.location.origin;
 
   socket = io(SERVER_URL, {
-    // Send both token AND userId in handshake so server can auto-register
-    auth: { token, userId },
+    // Send only JWT — server derives userId from token payload (never trust client-supplied userId)
+    auth: { token },
     transports: ['websocket', 'polling'], // polling fallback for restrictive networks
     reconnectionAttempts: 12,
     reconnectionDelay: 1000,
@@ -92,10 +92,16 @@ export const createSocket = (token, userId) => {
   // ── Page Visibility API reconnect ────────────────────────────────────────────
   // When a user returns to the tab after backgrounding, force reconnect if the
   // socket dropped while the tab was hidden (common on mobile browsers)
+  let _visibilityDebounce = null;
   _onVisibilityChange = () => {
     if (document.visibilityState === 'visible' && socket && !socket.connected) {
-      console.log('👁️ Tab visible again — forcing socket reconnect');
-      socket.connect();
+      clearTimeout(_visibilityDebounce);
+      _visibilityDebounce = setTimeout(() => {
+        if (socket && !socket.connected) {
+          console.log('👁️ Tab visible again — forcing socket reconnect');
+          socket.connect();
+        }
+      }, 500); // debounce: prevent reconnect spam on rapid tab switches
     }
   };
   document.addEventListener('visibilitychange', _onVisibilityChange);

@@ -1,10 +1,10 @@
 // client/src/pages/Dashboard.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/stores';
-import { useSocketStore } from '../store/stores';
+import { useAuthStore, useSocketStore } from '../store/stores';
 import { getSocket } from '../lib/socket';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 import Navbar from '../components/Navbar';
 import InputModeSwitcher from '../components/InputModeSwitcher';
 import QuickPhrases from '../components/QuickPhrases';
@@ -82,7 +82,6 @@ export default function Dashboard() {
 
   const [helpers, setHelpers] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [nextReminder, setNextReminder] = useState(null);
 
   const config = DISABILITY_CONFIG[user?.disabilityType] || DISABILITY_CONFIG.normal;
   const isParalyzed = user?.disabilityType === 'paralyzed';
@@ -128,13 +127,21 @@ export default function Dashboard() {
 
   const handleAction = async (action) => {
     if (action === 'call-helper') {
-      if (!helpers.length) { navigate('/profile'); return; }
-      // Create room and call first helper
-      const res = await api.post('/rooms/create', { type: '1-1' });
-      const { getSocket } = await import('../lib/socket');
-      const socket = getSocket();
-      socket.emit('call:initiate', { recipientId: helpers[0]._id, roomCode: res.data.roomCode });
-      navigate(`/call/room/${res.data.roomCode}`);
+      if (!helpers.length) {
+        toast.error('No helper linked. Go to Profile to add a helper first.');
+        navigate('/profile');
+        return;
+      }
+      try {
+        const res = await api.post('/rooms/create', { type: '1-1' });
+        const roomCode = res.data?.roomCode;
+        if (!roomCode) throw new Error('No room code returned');
+        const socket = getSocket();
+        if (socket) socket.emit('call:initiate', { recipientId: helpers[0]._id, roomCode });
+        navigate(`/call/room/${roomCode}`);
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to start call. Please try again.');
+      }
     } else if (action === 'connect') navigate('/connect');
     else if (action === 'send') navigate('/send');
     else if (action === 'helper') navigate('/helper/dashboard');

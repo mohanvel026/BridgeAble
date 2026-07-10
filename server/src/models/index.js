@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
   email:            { type: String, required: true, unique: true, lowercase: true },
   passwordHash:     { type: String, required: true },
   disabilityType:   { type: String, enum: ['deaf','paralyzed','speech','blind','normal'], required: true },
-  inputMode:        { type: String, enum: ['gesture','blink','symbol','voice','type'], default: 'type' },
+  inputMode:        { type: String, enum: ['blink','symbol','voice','type'], default: 'type' },
   blinkProfile: {
     earThreshold: { type: Number, default: 0.25 },
     dashMs:       { type: Number, default: 400 },
@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
   helpers:          [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   patients:         [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   plan:             { type: String, enum: ['free','pro'], default: 'free' },
-  stripeCustomerId: String,
+  stripeCustomerId: { type: String, index: { sparse: true } }, // sparse: only index users with Stripe
   avatar:           { type: String, default: '' },
   preferences: {
     language:       { type: String, default: 'en' },
@@ -37,6 +37,7 @@ const userSchema = new mongoose.Schema({
   resetOTP:         String,
   resetOTPExpiry:   Date,
   blockedUsers:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // @deprecated — use `connections` instead. Kept for backward compat with old documents.
   friends:          [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   // Industry-grade social graph fields
   connections:      [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

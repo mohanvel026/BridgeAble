@@ -43,27 +43,24 @@ async function registerOnlineUser(socket, userId) {
 
 // ── JWT Socket Middleware ─────────────────────────────────────────────────────
 // Extracts userId from handshake token at connection time —
-// so onlineUsers is populated BEFORE any events are emitted.
+// NEVER trusts client-supplied userId: always derive from JWT.
 function jwtSocketMiddleware(socket, next) {
-  const { token, userId } = socket.handshake.auth || {};
+  const { token } = socket.handshake.auth || {};
 
-  // Try decoding JWT first (most secure)
   if (token) {
     try {
-      const secret = process.env.JWT_SECRET || 'bridgeable-secret-key';
+      const secret = process.env.JWT_SECRET;
+      if (!secret) return next(new Error('Server misconfigured: JWT_SECRET missing'));
       const decoded = jwt.verify(token, secret);
       socket._preUserId = (decoded.id || decoded._id || decoded.userId || '').toString();
       return next();
     } catch (err) {
-      // Token invalid — fallback to plain userId from handshake
+      // Invalid JWT — allow connection but socket won't be registered in onlineUsers
+      console.warn('[socket:auth] Invalid token:', err.message);
     }
   }
 
-  // Fallback: accept plain userId from handshake (dev/offline mode)
-  if (userId) {
-    socket._preUserId = userId.toString();
-  }
-
+  // No token — allow connection (offline/dev mode) but no userId
   next();
 }
 

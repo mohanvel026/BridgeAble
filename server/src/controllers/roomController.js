@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 // ── Create room ───────────────────────────────────────────
 exports.createRoom = async (req, res) => {
   try {
-    const { type = '1-1', invitedUserId } = req.body;
+    const { type = '1-1' } = req.body; // invitedUserId param removed — not used
     
     // Validate type against enum
     if (!['1-1', 'group', 'care'].includes(type)) {
@@ -17,7 +17,7 @@ exports.createRoom = async (req, res) => {
     if (mongoose.connection.readyState !== 1) {
       console.log('🤖 Database offline. Creating mock WebRTC call room.');
       const mockRoom = {
-        _id: '655f75e9b890f5451a92a201',
+        _id: `mock-${Date.now()}`, // unique per call
         roomCode,
         hostId: req.user._id,
         participants: [req.user._id],
@@ -41,7 +41,8 @@ exports.createRoom = async (req, res) => {
 
     res.status(201).json({ success: true, room, roomCode });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Internal server error while creating room' });
+    console.error('[createRoom]', err.message);
+    res.status(500).json({ success: false, message: 'Failed to create room. Please try again.' });
   }
 };
 
@@ -76,46 +77,73 @@ exports.getRoom = async (req, res) => {
     }
 
     const room = await mongoose.model('Room').findOne({ roomCode })
-      .populate('participants', 'name avatar disabilityType inputMode blinkProfile');
+      .populate('participants', 'name avatar disabilityType inputMode'); // blinkProfile excluded (sensitive)
       
     if (!room) return res.status(404).json({ success: false, message: 'Room not found' });
+
+    // Only participants can view room details
+    const isParticipant = (room.participants || []).some(
+      p => String(p._id || p) === String(req.user._id)
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
     res.json({ success: true, room });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Internal server error while fetching room' });
+    console.error('[getRoom]', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch room' });
   }
 };
 
-// ── End room ──────────────────────────────────────────────
+// ── End room ───────────────────────────────────────────
 exports.endRoom = async (req, res) => {
   try {
     const roomCode = req.params.roomCode;
-    const durationSeconds = Number(req.body.durationSeconds) || 0;
 
     if (!roomCode || typeof roomCode !== 'string') {
       return res.status(400).json({ success: false, message: 'Invalid room code' });
     }
 
     if (mongoose.connection.readyState !== 1) {
+      const clientDur = Math.min(Number(req.body.durationSeconds) || 0, 86400);
       return res.json({
         success: true,
-        room: { roomCode, status: 'ended', endedAt: new Date(), durationSeconds }
+        room: { roomCode, status: 'ended', endedAt: new Date(), durationSeconds: clientDur }
       });
     }
 
+    // Fetch first to verify authorization and compute server-side duration
+    const existingRoom = await mongoose.model('Room').findOne({ roomCode });
+    if (!existingRoom) return res.status(404).json({ success: false, message: 'Room not found' });
+
+    // Participants (or host) can end the room — not just any user
+    const isParticipant = (existingRoom.participants || []).some(
+      p => String(p) === String(req.user._id)
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ success: false, message: 'Not authorized to end this room' });
+    }
+
+    // Server-computed duration — don't trust the client value
+    const serverDuration = existingRoom.startedAt
+      ? Math.min(Math.floor((Date.now() - new Date(existingRoom.startedAt).getTime()) / 1000), 86400)
+      : Math.min(Number(req.body.durationSeconds) || 0, 86400);
+
     const room = await mongoose.model('Room').findOneAndUpdate(
       { roomCode },
-      { status: 'ended', endedAt: new Date(), durationSeconds },
+      { status: 'ended', endedAt: new Date(), durationSeconds: serverDuration },
       { new: true }
     );
-    
-    if (!room) return res.status(404).json({ success: false, message: 'Room not found' });
+
     res.json({ success: true, room });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Internal server error while ending room' });
+    console.error('[endRoom]', err.message);
+    res.status(500).json({ success: false, message: 'Failed to end room' });
   }
 };
 
-// ── Get transcript for a room ─────────────────────────────
+// ── Get transcript for a room ──────────────────────────
 exports.getTranscript = async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -125,17 +153,26 @@ exports.getTranscript = async (req, res) => {
     const room = await mongoose.model('Room').findOne({ roomCode: req.params.roomCode });
     if (!room) return res.status(404).json({ success: false, message: 'Room not found' });
 
+    // Authorization: only room participants can read transcripts
+    const isParticipant = (room.participants || []).some(
+      p => String(p) === String(req.user._id)
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ success: false, message: 'Access denied: not a room participant' });
+    }
+
     const transcripts = await mongoose.model('Transcript').find({ roomId: room._id })
       .populate('senderId', 'name avatar disabilityType inputMode')
       .sort({ timestamp: 1 });
 
     res.json({ success: true, transcripts });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('[getTranscript]', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch transcript' });
   }
 };
 
-// ── Get my call history ───────────────────────────────────
+// ── Get my call history ─────────────────────────────────────
 exports.getCallHistory = async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -147,10 +184,12 @@ exports.getCallHistory = async (req, res) => {
       status: 'ended'
     })
     .populate('participants', 'name avatar disabilityType inputMode')
-    .sort({ startedAt: -1 });
+    .sort({ startedAt: -1 })
+    .limit(50);
 
     res.json({ success: true, calls });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error('[getCallHistory]', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch call history' });
   }
 };

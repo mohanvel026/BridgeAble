@@ -33,12 +33,12 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow same-origin requests (no origin header) and configured origins
-    if (!origin || ALLOWED_ORIGINS.length === 0 || ALLOWED_ORIGINS.includes(origin)) {
-      return cb(null, true);
-    }
-    // In dev mode allow all; in production restrict
+    // Allow same-origin requests (Postman, SSR, no-origin)
+    if (!origin) return cb(null, true);
+    // In development: allow everything
     if (process.env.NODE_ENV !== 'production') return cb(null, true);
+    // In production: only allow explicitly listed origins
+    if (ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
@@ -54,8 +54,8 @@ app.use(cookieParser());
 // ── Body parsers ──────────────────────────────────────────────────────────────
 // Raw body for Stripe webhook (MUST come before express.json)
 app.use('/api/payments/stripe/webhook', express.raw({ type: 'application/json' }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // ── Simple in-process rate limiter (no extra package needed) ──────────────────
 // Protects auth endpoints from brute-force without requiring redis
@@ -64,7 +64,7 @@ const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX       = 20;              // 20 auth attempts per window
 
 function authRateLimit(req, res, next) {
-  const ip  = req.ip || req.connection.remoteAddress || 'unknown';
+  const ip  = req.ip || req.socket?.remoteAddress || 'unknown';
   const now = Date.now();
   const bucket = rateBuckets.get(ip);
 

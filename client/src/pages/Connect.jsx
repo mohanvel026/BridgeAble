@@ -376,13 +376,18 @@ export default function Connect() {
   };
 
   const handleCall = async (targetUser, callType) => {
+    const socket = getSocket();
+    if (!socket || !socket.connected) {
+      toast.error('Not connected to server. Please wait a moment and try again.', { id: 'socket-not-ready' });
+      return;
+    }
     try {
       const res = await api.post('/rooms/create', { type: '1-1', callType });
-      const roomCode = res.data.roomCode;
-      const socket = getSocket();
+      const roomCode = res.data?.roomCode;
+      if (!roomCode) throw new Error('Failed to create room');
 
       // Emit to server with full caller context so IncomingCallModal gets the right data
-      socket?.emit('call:initiate', {
+      socket.emit('call:initiate', {
         recipientId: targetUser._id,
         roomCode,
         type: callType,
@@ -401,11 +406,11 @@ export default function Connect() {
           isInitiator: true,
           recipientId: targetUser._id,
           recipientName: targetUser.name,
-          callType: callType,
+          callType,
         },
       });
-    } catch {
-      toast.error('Could not start call. Please try again.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not start call. Please try again.');
     }
   };
 

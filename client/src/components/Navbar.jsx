@@ -17,23 +17,43 @@ export default function Navbar() {
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Add scroll listener for dynamic navbar styling
+  // Scroll listener for dynamic navbar styling
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Escape key closes any open menu
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') { setMobileMenuOpen(false); setProfileMenuOpen(false); }
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, []);
+
   const handleLogout = async () => {
-    await logout();
-    toast.success('Logged out securely');
-    navigate('/login');
+    try {
+      await logout();
+      toast.success('Logged out securely');
+      navigate('/login');
+    } catch {
+      // Even if logout API fails, clear local state and redirect
+      navigate('/login');
+    }
   };
 
-  const visibleLinks = NAV_LINKS.filter(l => !l.roles || l.roles.includes(user?.disabilityType));
+  // Helper link visible to 'normal' users OR users who have linked patients (deaf/blind helpers)
+  const visibleLinks = NAV_LINKS.filter(l =>
+    !l.roles ||
+    l.roles.includes(user?.disabilityType) ||
+    (user?.patients?.length > 0 && l.path === '/helper/dashboard')
+  );
 
   return (
     <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-2xl border-b border-white/5 shadow-2xl py-0' : 'bg-[#020808]/90 backdrop-blur-2xl border-b border-white/5 py-2'}`}>
@@ -66,14 +86,14 @@ export default function Navbar() {
         {/* Right side controls */}
         <div className="flex items-center gap-3">
           
-          <Link to="/send" title="Notifications"
+          <Link to="/send" title="Messages"
             className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-400 hover:text-teal-400 hover:bg-teal-500/10 transition-all border border-transparent hover:border-teal-500/20">
             <span className="text-lg drop-shadow-sm">🔔</span>
           </Link>
 
           {/* Profile Dropdown */}
           <div className="relative">
-            <button onClick={() => setMenuOpen(p => !p)}
+            <button onClick={() => setProfileMenuOpen(p => !p)}
               className="flex items-center gap-3 p-1.5 pr-3 rounded-full hover:bg-white/5 border border-transparent hover:border-white/10 transition-all focus:outline-none">
               {user?.avatar
                 ? <img src={user.avatar} className="w-8 h-8 rounded-full object-cover shadow-md" alt={user.name} />
@@ -85,19 +105,19 @@ export default function Navbar() {
               <span className="text-zinc-500 text-xs hidden sm:block">▾</span>
             </button>
 
-            {menuOpen && (
+            {profileMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="fixed inset-0 z-40" onClick={() => setProfileMenuOpen(false)} />
                 <div className="absolute right-0 top-full mt-3 w-64 rounded-2xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.8)] backdrop-blur-3xl bg-zinc-950/95 p-2 z-50 animate-slide-down overflow-hidden">
                   <div className="px-4 py-3 mb-2 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-white font-black truncate">{user?.name}</p>
                     <p className="text-[10px] text-teal-400 font-bold uppercase tracking-widest">{user?.disabilityType} User</p>
                   </div>
-                  <Link to="/profile" onClick={() => setMenuOpen(false)}
+                  <Link to="/profile" onClick={() => setProfileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all text-sm font-bold text-zinc-300 hover:text-white group">
                     <span className="group-hover:scale-110 transition-transform">👤</span> Profile & Settings
                   </Link>
-                  <Link to="/pricing" onClick={() => setMenuOpen(false)}
+                  <Link to="/pricing" onClick={() => setProfileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-amber-500/10 transition-all text-sm font-bold text-amber-500/80 hover:text-amber-400 group">
                     <span className="group-hover:scale-110 transition-transform">⚡</span> Upgrade to Pro
                   </Link>
@@ -112,14 +132,14 @@ export default function Navbar() {
           </div>
 
           {/* Mobile menu toggle */}
-          <button onClick={() => setMenuOpen(p => !p)} className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 bg-white/5 border border-white/10 active:scale-95 focus:outline-none">
+          <button onClick={() => setMobileMenuOpen(p => !p)} className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-zinc-300 bg-white/5 border border-white/10 active:scale-95 focus:outline-none">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
           </button>
         </div>
       </div>
 
       {/* Mobile nav dropdown drawer */}
-      {menuOpen && (
+      {mobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full border-t border-white/5 bg-zinc-950/95 backdrop-blur-2xl p-4 shadow-2xl animate-slide-down">
           <div className="space-y-2">
             {visibleLinks.map(link => {
