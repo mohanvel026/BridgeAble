@@ -337,29 +337,40 @@ exports.unlinkHelper = async (req, res) => {
   }
 };
 
-// ── Legacy: Add friend (instant, no request) ──────────────
+// ── Legacy: Add friend (instant, no request) ────────────
 exports.addFriend = async (req, res) => {
   try {
+    const myId = req.user._id.toString();
+    const theirId = req.params.userId;
+
+    // Prevent self-connection
+    if (myId === theirId) {
+      return res.status(400).json({ success: false, message: 'You cannot connect with yourself.' });
+    }
+
     if (!isDbOnline()) {
-      const me = offlineDb.getUserById(req.user._id);
-      const them = offlineDb.getUserById(req.params.userId);
+      const me = offlineDb.getUserById(myId);
+      const them = offlineDb.getUserById(theirId);
       if (me && them) {
         offlineDb.updateUser(me._id, { connections: [...(me.connections || []), them._id] });
         offlineDb.updateUser(them._id, { connections: [...(them.connections || []), me._id] });
       }
       return res.json({ success: true, message: 'Connected' });
     }
-    await User.findByIdAndUpdate(req.user._id, { $addToSet: { connections: req.params.userId } });
+
+    // Bidirectional — add for both users atomically
+    await Promise.all([
+      User.findByIdAndUpdate(myId,    { $addToSet: { connections: theirId } }),
+      User.findByIdAndUpdate(theirId, { $addToSet: { connections: myId } }),
+    ]);
     res.json({ success: true, message: 'Connected' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-exports.removeFriend = async (req, res) => {
-  req.params.userId = req.params.userId;
-  return exports.removeConnection(req, res);
-};
+// Legacy alias — delegates to the proper removeConnection handler
+exports.removeFriend = (req, res) => exports.removeConnection(req, res);
 
 // ── Block user ────────────────────────────────────────────
 exports.blockUser = async (req, res) => {

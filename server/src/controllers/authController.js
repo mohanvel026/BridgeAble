@@ -54,10 +54,13 @@ exports.register = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Email already registered' });
       }
 
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash(password, 12);
+
       const mockUser = await offlineDb.createUser({
         name,
         email,
-        passwordHash: password, // plain password for simple local offline verification
+        passwordHash: hashedPassword, // properly hashed — bcrypt.compare works on login
         disabilityType: disabilityType || 'normal',
         inputMode: inputMode || getDefaultMode(disabilityType)
       });

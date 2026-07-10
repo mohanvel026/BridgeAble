@@ -1,7 +1,6 @@
 // client/src/pages/Profile.jsx
 import { useState, useRef } from 'react';
 import { useAuthStore } from '../store/stores';
-import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Navbar from '../components/Navbar';
 import toast from 'react-hot-toast';
@@ -18,9 +17,9 @@ const INTERESTS = ['Music', 'Sports', 'Cooking', 'Travel', 'Books', 'Tech', 'Art
 
 export default function Profile() {
   const { user, updateUser } = useAuthStore();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [helperEmail, setHelperEmail] = useState('');
   const fileInputRef = useRef(null);
 
@@ -34,10 +33,10 @@ export default function Profile() {
     notificationPrefs: user?.notificationPrefs || {},
   });
 
-  const setField = (key, val) => setForm(p => ({ ...p, [key]: val }));
-  const setPref = (key, val) => setForm(p => ({ ...p, preferences: { ...p.preferences, [key]: val } }));
-  const setPriv = (key, val) => setForm(p => ({ ...p, privacySettings: { ...p.privacySettings, [key]: val } }));
-  const setNotif = (key, val) => setForm(p => ({ ...p, notificationPrefs: { ...p.notificationPrefs, [key]: val } }));
+  const setField = (key, val) => { setForm(p => ({ ...p, [key]: val })); setIsDirty(true); };
+  const setPref  = (key, val) => { setForm(p => ({ ...p, preferences: { ...p.preferences, [key]: val } })); setIsDirty(true); };
+  const setPriv  = (key, val) => { setForm(p => ({ ...p, privacySettings: { ...p.privacySettings, [key]: val } })); setIsDirty(true); };
+  const setNotif = (key, val) => { setForm(p => ({ ...p, notificationPrefs: { ...p.notificationPrefs, [key]: val } })); setIsDirty(true); };
 
   const toggleInterest = (i) => {
     setForm(p => ({
@@ -51,6 +50,7 @@ export default function Profile() {
     try {
       const res = await api.put('/users/profile', form);
       updateUser(res.data.user);
+      setIsDirty(false);
       toast.success('Configuration synchronized');
     } catch { toast.error('Synchronization failed'); }
     finally { setSaving(false); }
@@ -71,17 +71,25 @@ export default function Profile() {
 
   const handleLinkHelper = async () => {
     if (!helperEmail.trim()) return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(helperEmail.trim())) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
     try {
-      await api.post('/users/link-helper', { helperEmail });
+      await api.post('/users/link-helper', { helperEmail: helperEmail.trim() });
+      const meRes = await api.get('/auth/me');
+      updateUser(meRes.data.user);
       toast.success('Care network updated');
       setHelperEmail('');
-    } catch { toast.error('User not found in system'); }
+    } catch (err) { toast.error(err.response?.data?.message || 'User not found in system'); }
   };
 
   const handleUnlinkHelper = async (helperId) => {
     try {
       await api.delete(`/users/unlink-helper/${helperId}`);
-      updateUser({ helpers: user.helpers.filter(h => h._id !== helperId) });
+      const meRes = await api.get('/auth/me');
+      updateUser(meRes.data.user);
       toast.success('Helper disconnected');
     } catch { toast.error('Disconnection failed'); }
   };
@@ -113,9 +121,15 @@ export default function Profile() {
             </div>
             
             <div className="hidden lg:block mt-8 pt-8 border-t border-white/5">
+              {isDirty && (
+                <p className="text-xs text-amber-400 text-center mb-3 flex items-center justify-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                  Unsaved changes
+                </p>
+              )}
               <button onClick={handleSave} disabled={saving}
-                className="w-full py-4 bg-teal-500 hover:bg-teal-400 text-teal-950 font-black tracking-wide rounded-2xl transition-all shadow-lg shadow-teal-500/25 active:scale-95 disabled:opacity-50">
-                {saving ? 'Synchronizing...' : 'Save Configuration'}
+                className={`w-full py-4 font-black tracking-wide rounded-2xl transition-all shadow-lg active:scale-95 disabled:opacity-50 ${isDirty ? 'bg-teal-400 hover:bg-teal-300 text-teal-950 shadow-teal-400/30 ring-2 ring-teal-400/40' : 'bg-teal-500 hover:bg-teal-400 text-teal-950 shadow-teal-500/25'}`}>
+                {saving ? 'Synchronizing...' : isDirty ? 'Save Changes ✦' : 'Save Configuration'}
               </button>
             </div>
           </div>

@@ -65,20 +65,45 @@ export default function Register() {
     disabilityType: '', inputMode: '',
     helperEmail: '', language: 'en', speed: 'normal',
   });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // Password strength calculator
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return null;
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 12) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (score <= 1) return { label: 'Weak', color: 'bg-red-500', width: 'w-1/4', text: 'text-red-400' };
+    if (score === 2) return { label: 'Fair', color: 'bg-amber-500', width: 'w-2/4', text: 'text-amber-400' };
+    if (score === 3) return { label: 'Good', color: 'bg-teal-500', width: 'w-3/4', text: 'text-teal-400' };
+    return { label: 'Strong', color: 'bg-accent-cyan', width: 'w-full', text: 'text-accent-cyan' };
+  };
+  const strength = getPasswordStrength(form.password);
 
   const handleCardSelect = (card) => {
     setForm(p => ({ ...p, disabilityType: card.type, inputMode: card.inputMode }));
   };
 
   const handleSubmit = async () => {
+    // Validate helperEmail format if provided
+    if (form.helperEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.helperEmail.trim())) {
+        toast.error('Please enter a valid helper email address.');
+        return;
+      }
+    }
     setLoading(true);
     try {
       const result = await register(form);
       toast.success('Welcome to BridgeAble!');
-      if (result.needsCalibration) navigate('/onboarding');
+      if (result?.needsCalibration) navigate('/onboarding');
       else navigate('/dashboard');
     } catch (err) {
       const serverMessage = err.response?.data?.message;
@@ -152,13 +177,43 @@ export default function Register() {
                   <label className="block text-sm text-text-secondary mb-1.5">Password</label>
                   <input className="input" type="password" placeholder="Min 8 characters" value={form.password}
                     onChange={e => set('password', e.target.value)} />
+                  {/* Password strength indicator */}
+                  {form.password && strength && (
+                    <div className="mt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-text-muted">Strength</span>
+                        <span className={`text-xs font-bold ${strength.text}`}>{strength.label}</span>
+                      </div>
+                      <div className="h-1 w-full bg-dark-700 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-300 ${strength.color} ${strength.width}`} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm text-text-secondary mb-1.5">Confirm Password</label>
+                  <input className="input" type="password" placeholder="Re-enter your password" value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)} />
+                  {confirmPassword && form.password !== confirmPassword && (
+                    <p className="text-xs text-red-400 mt-1">Passwords do not match</p>
+                  )}
                 </div>
               </div>
 
               <button className="btn-primary w-full text-sm font-semibold py-3.5"
                 onClick={() => {
-                  if (!form.name || !form.email || !form.password) {
+                  if (!form.name?.trim() || !form.email?.trim() || !form.password) {
                     toast.error('Please fill all fields'); return;
+                  }
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (!emailRegex.test(form.email.trim())) {
+                    toast.error('Please enter a valid email address'); return;
+                  }
+                  if (form.password.length < 8) {
+                    toast.error('Password must be at least 8 characters'); return;
+                  }
+                  if (form.password !== confirmPassword) {
+                    toast.error('Passwords do not match'); return;
                   }
                   setStep(2);
                 }}>
