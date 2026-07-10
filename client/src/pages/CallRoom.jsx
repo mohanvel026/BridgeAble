@@ -139,6 +139,9 @@ export default function CallRoom() {
   const makingOffer    = useRef(false);
   const ignoreOffer    = useRef(false);
   const isPolite       = useRef(!isInitiator); // callee is polite
+  const peerDisconnectTimer = useRef(null);    // auto-exit when peer drops
+  // Ref so createPC can call handleEnd without stale-closure issues
+  const handleEndRef   = useRef(null);
 
   // ── State ─────────────────────────────────────────────────
   const [callPhase,        setCallPhase]        = useState(isInitiator ? 'ringing' : 'joining');
@@ -254,9 +257,15 @@ export default function CallRoom() {
       }
     };
 
-    // Connection state → call phase + chime + timer
+    // Connection state → call phase + chime + timer + peer-drop guard
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'connected') {
+      const state = pc.connectionState;
+
+      if (state === 'connected') {
+        // Peer reconnected — cancel any pending auto-exit
+        clearTimeout(peerDisconnectTimer.current);
+        peerDisconnectTimer.current = null;
+
         setCallPhase('active');
         setNetQuality('good');
         chime();
@@ -265,8 +274,27 @@ export default function CallRoom() {
         timerRef.current = setInterval(() => {
           if (isLive.current) setDuration(Math.floor((Date.now() - start) / 1000));
         }, 1000);
-      } else if (pc.connectionState === 'failed') {
-        pc.restartIce?.();
+
+      } else if (state === 'disconnected') {
+        // WebRTC transport dropped — may recover on its own (network hiccup).
+        // Give peer 10 seconds to reconnect before ending the call.
+        setNetQuality('poor');
+        clearTimeout(peerDisconnectTimer.current);
+        peerDisconnectTimer.current = setTimeout(() => {
+          if (!isLive.current) return;
+          if (peerRef.current?.connectionState === 'connected') return; // recovered
+          toast('The other person lost connection. Ending call.', { icon: '🔌', duration: 3000 });
+          handleEndRef.current?.();
+        }, 10_000);
+
+      } else if (state === 'failed') {
+        // Unrecoverable — end immediately
+        clearTimeout(peerDisconnectTimer.current);
+        toast('Connection failed. The call has ended.', { icon: '🔌', duration: 3000 });
+        handleEndRef.current?.();
+
+      } else if (state === 'closed') {
+        clearTimeout(peerDisconnectTimer.current);
       }
     };
 
@@ -291,6 +319,7 @@ export default function CallRoom() {
   // ── Full cleanup ─────────────────────────────────────────
   const cleanup = useCallback(() => {
     isLive.current = false;
+    clearTimeout(peerDisconnectTimer.current);
     clearInterval(timerRef.current);
     clearInterval(ringTimerRef.current);
     clearTimeout(controlHideTimer.current);
@@ -643,6 +672,10 @@ export default function CallRoom() {
     cleanup();
     navigate('/dashboard');
   }, [socket, roomCode, duration, cleanup, navigate]);
+
+  // Keep ref always pointing to the latest handleEnd (avoids stale closure in createPC timers)
+  handleEndRef.current = handleEnd;
+
 
   const handleCancel = () => {
     clearInterval(ringTimerRef.current);
