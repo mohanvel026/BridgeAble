@@ -113,5 +113,8 @@ export const useCallStore = create((set) => ({
       : [...state.participants, participant] 
   })),
   setRoom: (roomCode) => set({ roomCode }),
-  endCall: () => set({ subtitles: [], participants: [], roomCode: null }),
+  endCall: () => {
+    safeStorage.removeItem('ba_inputMode');
+    set({ subtitles: [], participants: [], roomCode: null, inputMode: null });
+  },
 }));

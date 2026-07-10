@@ -281,6 +281,9 @@ export default function Connect() {
   const [users, setUsers] = useState([]);
   const [connections, setConnections] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filters, setFilters] = useState({ disabilityType: '', online: false });
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 250);
@@ -288,20 +291,36 @@ export default function Connect() {
   const [selectedUser, setSelectedUser] = useState(null); // for action panel
   const [requestBadge, setRequestBadge] = useState(0);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
+  const fetchDiscover = useCallback(async (pageNum, replace = false) => {
+    if (replace) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     try {
       const params = new URLSearchParams();
       if (filters.disabilityType) params.set('disabilityType', filters.disabilityType);
       if (filters.online) params.set('online', 'true');
+      params.set('page', pageNum);
 
-      const [discoverRes, connRes, reqRes] = await Promise.all([
-        api.get(`/users/discover?${params}`),
+      const res = await api.get(`/users/discover?${params}`);
+      const newUsers = res.data.users || [];
+      setUsers(prev => replace ? newUsers : [...prev, ...newUsers]);
+      setHasMore(newUsers.length === 20);
+    } catch {
+      toast.error('Failed to load discovery users');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [filters]);
+
+  const fetchConnectionsAndRequests = useCallback(async () => {
+    try {
+      const [connRes, reqRes] = await Promise.all([
         api.get('/users/connections'),
         api.get('/users/connection-requests'),
       ]);
-
-      setUsers(discoverRes.data.users || []);
       setConnections(connRes.data.connections || []);
       setRequests(reqRes.data.requests || []);
       setRequestBadge(reqRes.data.requests?.length || 0);
@@ -312,7 +331,18 @@ export default function Connect() {
     }
   }, [filters]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // Fetch connections and requests on mount
+  useEffect(() => {
+    fetchConnectionsAndRequests();
+  }, [fetchConnectionsAndRequests]);
+
+  // Fetch discover users when filters or tab changes
+  useEffect(() => {
+    if (tab === 'discover') {
+      setPage(1);
+      fetchDiscover(1, true);
+    }
+  }, [filters, tab, fetchDiscover]);
 
   // Real-time socket events
   useEffect(() => {
@@ -327,7 +357,7 @@ export default function Connect() {
 
     const onAccepted = (data) => {
       toast.success(`🎉 ${data.byUser.name} accepted your request!`);
-      fetchAll();
+      fetchConnectionsAndRequests();
     };
 
     const onStatus = ({ userId, status }) => {
@@ -345,7 +375,7 @@ export default function Connect() {
       socket.off('connection:accepted', onAccepted);
       socket.off('user:status', onStatus);
     };
-  }, [fetchAll]);
+  }, [fetchConnectionsAndRequests]);
 
   const handleAccept = async (targetUser) => {
     try {
@@ -353,7 +383,7 @@ export default function Connect() {
       toast.success(`Connected with ${targetUser.name}!`);
       setRequests(p => p.filter(r => r._id !== targetUser._id));
       setRequestBadge(b => Math.max(0, b - 1));
-      fetchAll();
+      fetchConnectionsAndRequests();
     } catch {
       toast.error('Failed to accept request');
     }
@@ -584,13 +614,30 @@ export default function Connect() {
               <p className="text-zinc-500">No users found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredSearch(users).map(u => (
-                <UserCard key={u._id} user={u}
-                  myDisabilityType={user?.disabilityType}
-                  onAction={handleAction}
-                  onOpenPanel={setSelectedUser} />
-              ))}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSearch(users).map(u => (
+                  <UserCard key={u._id} user={u}
+                    myDisabilityType={user?.disabilityType}
+                    onAction={handleAction}
+                    onOpenPanel={setSelectedUser} />
+                ))}
+              </div>
+              {hasMore && (
+                <div className="flex justify-center pt-4">
+                  <button
+                    onClick={() => {
+                      const next = page + 1;
+                      setPage(next);
+                      fetchDiscover(next, false);
+                    }}
+                    disabled={loadingMore}
+                    className="px-6 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-sm font-bold hover:bg-cyan-500/20 disabled:opacity-50 transition-all"
+                  >
+                    {loadingMore ? 'Loading...' : 'Load More Users ↓'}
+                  </button>
+                </div>
+              )}
             </div>
           )
         )}

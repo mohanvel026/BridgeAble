@@ -33,6 +33,7 @@ async function registerOnlineUser(socket, userId) {
       if (user) {
         socket.disabilityType = user.disabilityType;
         socket.inputMode = user.inputMode;
+        socket.userName = user.name;
       }
     } catch (e) {}
   }
@@ -201,6 +202,7 @@ exports.initSocket = (server) => {
         offer,
         fromDisability: socket.disabilityType || 'normal',
         fromInputMode:  socket.inputMode || 'voice',
+        fromName:       socket.userName || 'Participant',
       };
       if (sid) {
         io.to(sid).emit('webrtc:offer', payload);

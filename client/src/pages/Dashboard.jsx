@@ -132,13 +132,35 @@ export default function Dashboard() {
         navigate('/profile');
         return;
       }
+      const userMode = user?.disabilityType || 'normal';
+      const callType = (userMode === 'blind' || userMode === 'paralyzed' || userMode === 'speech') ? 'voice' : 'video';
       try {
-        const res = await api.post('/rooms/create', { type: '1-1' });
+        const res = await api.post('/rooms/create', { type: '1-1', callType });
         const roomCode = res.data?.roomCode;
         if (!roomCode) throw new Error('No room code returned');
         const socket = getSocket();
-        if (socket) socket.emit('call:initiate', { recipientId: helpers[0]._id, roomCode });
-        navigate(`/call/room/${roomCode}`);
+        if (socket) {
+          socket.emit('call:initiate', {
+            recipientId: helpers[0]._id,
+            roomCode,
+            type: callType,
+            fromUser: {
+              _id: user._id,
+              name: user.name,
+              avatar: user.avatar,
+              disabilityType: user.disabilityType,
+              inputMode: user.inputMode,
+            }
+          });
+        }
+        navigate(`/call/room/${roomCode}`, {
+          state: {
+            isInitiator: true,
+            recipientId: helpers[0]._id,
+            recipientName: helpers[0].name,
+            callType,
+          }
+        });
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to start call. Please try again.');
       }

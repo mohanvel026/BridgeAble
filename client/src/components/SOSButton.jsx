@@ -81,11 +81,19 @@ export default function SOSButton() {
     // Auto-call first helper
     if (user?.helpers?.length) {
       try {
-        const res = await api.post('/rooms/create', { type: '1-1' });
+        const res = await api.post('/rooms/create', { type: '1-1', callType: 'sos' });
         socket?.emit('call:initiate', {
           recipientId: user.helpers[0]._id || user.helpers[0],
           roomCode: res.data.roomCode,
+          type: 'sos',
           callType: 'sos',
+          fromUser: {
+            _id: user._id,
+            name: user.name,
+            avatar: user.avatar,
+            disabilityType: user.disabilityType,
+            inputMode: user.inputMode,
+          }
         });
       } catch { }
     }

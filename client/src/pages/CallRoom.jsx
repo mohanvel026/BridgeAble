@@ -9,6 +9,7 @@ import React, {
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore, useCallStore } from '../store/stores';
 import { getSocket } from '../lib/socket';
+import api from '../lib/api';
 import toast from 'react-hot-toast';
 
 // Communication Panels (mic-only or keyboard — no camera conflicts)
@@ -24,8 +25,20 @@ const RTC_CONFIG = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    // TURN fallback — required for symmetric NAT (corporate, mobile hotspot)
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
+  iceCandidatePoolSize: 10,
 };
+
 
 const RING_SECONDS = 40;
 
@@ -460,13 +473,13 @@ export default function CallRoom() {
     };
 
     // Received SDP offer → create answer
-    const onOffer = async ({ from, offer, fromDisability, fromInputMode }) => {
+    const onOffer = async ({ from, offer, fromDisability, fromInputMode, fromName }) => {
       if (!isLive.current) return;
       setRemoteParticipant(prev => prev ?? {
         userId: from,
         disabilityType: fromDisability,
         inputMode: fromInputMode,
-        name: recipientName,
+        name: fromName || recipientName,
       });
 
       const offerCollision = makingOffer.current || peerRef.current?.signalingState !== 'stable';
@@ -522,10 +535,11 @@ export default function CallRoom() {
     // Call end events
     const onEnded      = ()          => navigate('/dashboard');
     const onEndGrace   = ({ reason } = {}) => {
-      const msg = reason === 'disconnected'
-        ? 'The other person lost connection.'
-        : 'The call ended.';
-      toast(msg, { icon: '👋', duration: 3000 });
+      if (reason === 'disconnected') {
+        toast('Connection interrupted. Attempting to reconnect...', { icon: '🔄', duration: 3000 });
+        return;
+      }
+      toast('The call has ended.', { icon: '👋', duration: 3000 });
       navigate('/dashboard');
     };
     const onDeclined   = ()          => { toast.error('Call declined.'); navigate('/dashboard'); };
@@ -669,6 +683,9 @@ export default function CallRoom() {
     socket?.emit('call:end', { roomCode, durationSeconds: duration });
     socket?.emit('call:end-graceful', { roomCode });
     localStreamRef.current?.getTracks().forEach(t => t.stop());
+    api.post(`/rooms/${roomCode}/end`, { durationSeconds: duration }).catch(err => {
+      console.error('Failed to end room on DB:', err);
+    });
     cleanup();
     navigate('/dashboard');
   }, [socket, roomCode, duration, cleanup, navigate]);
