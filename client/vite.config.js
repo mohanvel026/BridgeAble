@@ -38,7 +38,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    minify: false,
+    reportCompressedSize: false,
     rollupOptions: {
+      maxParallelFileOps: 2,
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
